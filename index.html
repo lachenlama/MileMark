@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>MileMark — we run together</title>
+    <meta
+      name="description"
+      content="A not another run. No medals, no leaderboard flexing. Just the road and whoever shows up."
+    />
+
+    <!-- PWA -->
+    <link rel="manifest" href="manifest.webmanifest" />
+    <meta name="theme-color" content="#080808" />
+    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MileMark" />
+
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <!-- Leaflet (map) -->
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="wordmark" href="#top">MILE<span>MARK</span></a>
+      <div class="topbar-actions">
+        <a class="ghost-btn" href="admin.html">admin</a>
+        <button id="installBtn" class="ghost-btn" hidden>install</button>
+      </div>
+    </header>
+
+    <main id="top">
+      <!-- YOUR CARD (gamification) -->
+      <section id="profileCard" class="profile-card" hidden>
+        <span class="avatar" id="pcAvatar"></span>
+        <div class="pc-body">
+          <div class="pc-top">
+            <b id="pcName"></b>
+            <span class="level-badge" id="pcLevel"></span>
+          </div>
+          <div class="pc-bar"><span id="pcBarFill"></span></div>
+          <small class="pc-meta">
+            <span id="pcPoints">0</span> pts ·
+            <span id="pcNext"></span> ·
+            <span id="pcRuns">0</span> runs
+          </small>
+        </div>
+      </section>
+
+      <!-- FEATURED RUN -->
+      <section class="hero" id="featured">
+        <p class="eyebrow">this week's run</p>
+        <h1 id="runTitle">—</h1>
+        <p class="hero-sub" id="runBlurb"></p>
+
+        <div id="mapWrap" class="map-wrap">
+          <div id="map"></div>
+          <span class="map-tag" id="mapDist"></span>
+        </div>
+
+        <div class="countdown" id="countdown" aria-live="polite">
+          <div class="cd-unit"><span data-cd="days">0</span><label>days</label></div>
+          <div class="cd-unit"><span data-cd="hours">0</span><label>hrs</label></div>
+          <div class="cd-unit"><span data-cd="mins">0</span><label>min</label></div>
+          <div class="cd-unit"><span data-cd="secs">0</span><label>sec</label></div>
+        </div>
+
+        <dl class="run-meta">
+          <div><dt>when</dt><dd id="metaWhen">—</dd></div>
+          <div><dt>where</dt><dd id="metaWhere">—</dd></div>
+          <div><dt>distance</dt><dd id="metaDist">—</dd></div>
+        </dl>
+
+        <button class="cta" id="joinFeatured">i'm in →</button>
+        <p class="count-line"><span id="countNum">0</span> showing up so far</p>
+      </section>
+
+      <!-- WHO'S SHOWING UP (featured run) -->
+      <section class="wall">
+        <h2>who's showing up</h2>
+        <ul id="runnerList" class="runner-list"></ul>
+        <p id="emptyState" class="empty">nobody yet. be the first name on the wall.</p>
+      </section>
+
+      <!-- MORE RUNS -->
+      <section class="more">
+        <h2>more runs</h2>
+        <div id="runCards" class="run-cards"></div>
+      </section>
+
+      <footer class="footer">
+        <p>a not another run</p>
+        <p class="dim">MileMark</p>
+      </footer>
+    </main>
+
+    <!-- REGISTER SHEET -->
+    <div id="sheet" class="sheet" hidden>
+      <div class="sheet-backdrop" data-close></div>
+      <form id="joinForm" class="sheet-card" novalidate>
+        <button type="button" class="sheet-x" data-close aria-label="close">✕</button>
+        <h3>lock it in</h3>
+        <p class="sheet-sub" id="sheetRun">for the run</p>
+
+        <label>
+          what do we call you
+          <input name="alias" type="text" placeholder="alias or real name" required maxlength="40" />
+        </label>
+        <label>
+          how do we reach you
+          <input name="contact" type="text" placeholder="insta @ or phone" required maxlength="60" />
+        </label>
+
+        <fieldset class="pace">
+          <legend>your pace, honestly</legend>
+          <label class="chip"><input type="radio" name="pace" value="just here for it" checked /><span>just here for it</span></label>
+          <label class="chip"><input type="radio" name="pace" value="easy jog" /><span>easy jog</span></label>
+          <label class="chip"><input type="radio" name="pace" value="i'll push" /><span>i'll push</span></label>
+        </fieldset>
+
+        <label>
+          anything else (optional)
+          <input name="note" type="text" placeholder="bringing a friend? injured? say it" maxlength="80" />
+        </label>
+
+        <button type="submit" class="cta">put me on the wall</button>
+        <p class="sheet-fine">+50 pts when you sign up. stored on your phone for now.</p>
+      </form>
+    </div>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="data.js"></script>
+    <script src="app.js"></script>
+  </body>
+</html>

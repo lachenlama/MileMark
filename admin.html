@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>MileMark · admin</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
+      crossorigin=""
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="admin">
+    <header class="topbar">
+      <a class="wordmark" href="index.html">MILE<span>MARK</span> · admin</a>
+      <a class="ghost-btn" href="index.html">view app →</a>
+    </header>
+
+    <main class="admin-main">
+      <section class="admin-builder">
+        <h1>build a run</h1>
+        <p class="admin-hint">
+          tap the map to drop route points. drag any point to move it. the line
+          and distance update live.
+        </p>
+
+        <div id="adminMap" class="admin-map"></div>
+
+        <div class="admin-route-actions">
+          <span class="route-dist">route: <b id="routeKm">0.0 km</b> · <b id="routePts">0</b> pts</span>
+          <button id="undoBtn" class="ghost-btn">undo</button>
+          <button id="clearBtn" class="ghost-btn">clear</button>
+        </div>
+
+        <form id="runForm" class="admin-form">
+          <input type="hidden" name="id" />
+          <label>title<input name="title" type="text" placeholder="the sunday slow one" required /></label>
+          <label>blurb<textarea name="blurb" rows="2" placeholder="what's the vibe of this one"></textarea></label>
+          <div class="form-row">
+            <label>date & time<input name="startsAt" type="datetime-local" required /></label>
+            <label>distance (optional)<input name="distance" type="text" placeholder="auto from route" /></label>
+          </div>
+          <label>where<input name="where" type="text" placeholder="outside the cafe, Salbari" /></label>
+          <label class="checkbox">
+            <input name="featured" type="checkbox" /> make this the featured run
+          </label>
+          <div class="form-row">
+            <button type="submit" class="cta">save run</button>
+            <button type="button" id="resetFormBtn" class="ghost-btn">new / reset</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="admin-list">
+        <h2>all runs</h2>
+        <div id="adminRuns" class="admin-runs"></div>
+      </section>
+    </main>
+
+    <div id="toast" class="toast" hidden></div>
+
+    <script
+      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
+      crossorigin=""
+    ></script>
+    <script src="data.js"></script>
+    <script src="admin.js"></script>
+  </body>
+</html>
