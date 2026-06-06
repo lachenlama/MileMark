@@ -41,18 +41,37 @@ function redrawRoute() {
   if (route.length) {
     line = L.polyline(route, { color: "#ff233d", weight: 5, opacity: 0.95 }).addTo(map);
   }
+  const isLoop =
+    route.length > 2 &&
+    route[0][0] === route[route.length - 1][0] &&
+    route[0][1] === route[route.length - 1][1];
   route.forEach((pt, i) => {
     const isStart = i === 0;
     const isEnd = i === route.length - 1 && route.length > 1;
     const color = isStart ? "#ff233d" : isEnd ? "#ffd43b" : "#f6f3ed";
     const m = L.circleMarker(pt, {
-      radius: 7,
+      radius: isStart || isEnd ? 9 : 6,
       color: "#080808",
       weight: 2,
       fillColor: color,
       fillOpacity: 1,
-      draggable: true,
     }).addTo(map);
+    // handwritten start / finish labels (excalidraw vibe)
+    if (isStart) {
+      m.bindTooltip(isLoop ? "start / finish" : "start", {
+        permanent: true,
+        direction: "top",
+        className: "mm-tip mm-tip-start",
+        offset: [0, -5],
+      });
+    } else if (isEnd && !isLoop) {
+      m.bindTooltip("finish line", {
+        permanent: true,
+        direction: "top",
+        className: "mm-tip mm-tip-finish",
+        offset: [0, -5],
+      });
+    }
     // circleMarker has no native drag; emulate with mouse/touch handlers
     enableDrag(m, i);
     m.on("contextmenu", () => {
@@ -118,7 +137,7 @@ function slugId(title) {
   );
 }
 
-function saveRun(e) {
+async function saveRun(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
   const title = (fd.get("title") || "").toString().trim();
@@ -136,7 +155,16 @@ function saveRun(e) {
     featured: fd.get("featured") === "on",
     route: route.slice(),
   };
-  MM.upsertRun(run);
+  const btn = e.target.querySelector('button[type="submit"]');
+  if (btn) btn.disabled = true;
+  try {
+    await MM.upsertRun(run);
+    await MM.refresh();
+  } catch (err) {
+    if (btn) btn.disabled = false;
+    return toast(err.message || "couldn't save — are you still logged in?");
+  }
+  if (btn) btn.disabled = false;
   toast(editingId ? "run updated ✓" : "run saved ✓");
   resetForm();
   renderRuns();
@@ -196,22 +224,25 @@ function renderRuns() {
     row.querySelector("small").textContent =
       MM.whenText(run.startsAt) + " · " + (km ? km.toFixed(1) + " km" : "no route") + " · " + count + " in";
     row.querySelector("[data-edit]").addEventListener("click", () => loadRun(run));
-    row.querySelector("[data-del]").addEventListener("click", () => {
-      if (confirm("delete “" + run.title + "”?")) {
-        MM.deleteRun(run.id);
-        if (editingId === run.id) resetForm();
-        renderRuns();
-        toast("deleted");
+    row.querySelector("[data-del]").addEventListener("click", async () => {
+      if (!confirm("delete “" + run.title + "”?")) return;
+      try {
+        await MM.deleteRun(run.id);
+        await MM.refresh();
+      } catch (err) {
+        return toast(err.message || "couldn't delete");
       }
+      if (editingId === run.id) resetForm();
+      renderRuns();
+      toast("deleted");
     });
     wrap.appendChild(row);
   }
 }
 
 // ---------- init ----------
-function init() {
+async function init() {
   initMap();
-  renderRuns();
   redrawRoute();
   $("#runForm").addEventListener("submit", saveRun);
   $("#undoBtn").addEventListener("click", () => {
@@ -223,7 +254,21 @@ function init() {
     redrawRoute();
   });
   $("#resetFormBtn").addEventListener("click", resetForm);
+  const logout = $("#logoutBtn");
+  if (logout) {
+    logout.addEventListener("click", async () => {
+      await MM.adminLogout().catch(() => {});
+      location.href = "/admin-login.html";
+    });
+  }
   setTimeout(() => map.invalidateSize(), 200);
+
+  try {
+    await MM.refresh();
+  } catch (e) {
+    toast("couldn't load runs from the server");
+  }
+  renderRuns();
 }
 
 init();

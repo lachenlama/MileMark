@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>MileMark · admin login</title>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;600;700&family=Manrope:wght@500;700;800;900&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="admin">
+    <header class="topbar">
+      <a class="wordmark" href="index.html">MILE<span>MARK</span> · admin</a>
+      <a class="ghost-btn" href="index.html">view app →</a>
+    </header>
+
+    <main class="login-main">
+      <form id="loginForm" class="login-card">
+        <h1>admin</h1>
+        <p class="login-sub">just the people who set the runs. drop the password.</p>
+        <label>
+          password
+          <input name="password" type="password" autocomplete="current-password" required />
+        </label>
+        <button type="submit" class="cta">let me in →</button>
+        <p class="login-fine" id="loginMsg" hidden></p>
+      </form>
+    </main>
+
+    <script src="data.js"></script>
+    <script>
+      const form = document.getElementById("loginForm");
+      const msg = document.getElementById("loginMsg");
+      form.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const password = new FormData(form).get("password");
+        const btn = form.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        msg.hidden = true;
+        try {
+          await MM.adminLogin(password);
+          location.href = "/admin.html";
+        } catch (err) {
+          msg.textContent = err.message || "wrong password";
+          msg.hidden = false;
+          btn.disabled = false;
+        }
+      });
+    </script>
+  </body>
+</html>

@@ -1,0 +1,22 @@
+# Environment variables and secrets
+.env
+.env.*
+!.env.example
+
+# Dependencies
+node_modules/
+
+# Local dev database (prod uses Upstash Redis)
+data/db.json
+
+# Logs
+*.log
+
+# Local build/deploy output
+.vercel/
+
+# OS/editor noise
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/

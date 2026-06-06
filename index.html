@@ -18,7 +18,7 @@
     <meta name="apple-mobile-web-app-title" content="MileMark" />
 
     <link
-      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@500;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;600;700&family=Manrope:wght@500;700;800;900&display=swap"
       rel="stylesheet"
     />
     <!-- Leaflet (map) -->
@@ -57,6 +57,9 @@
         </div>
       </section>
 
+      <!-- THE APP NOTICING YOU -->
+      <p id="notedLine" class="noted" hidden></p>
+
       <!-- FEATURED RUN -->
       <section class="hero" id="featured">
         <p class="eyebrow">this week's run</p>
@@ -82,6 +85,8 @@
         </dl>
 
         <button class="cta" id="joinFeatured">i'm in →</button>
+        <button class="cta" id="logFeatured" hidden>log your run →</button>
+        <button class="ghost-btn share-line-btn" id="shareFeatured" hidden>↗ share that you're in</button>
         <p class="count-line"><span id="countNum">0</span> showing up so far</p>
       </section>
 
@@ -90,6 +95,13 @@
         <h2>who's showing up</h2>
         <ul id="runnerList" class="runner-list"></ul>
         <p id="emptyState" class="empty">nobody yet. be the first name on the wall.</p>
+      </section>
+
+      <!-- YOUR MARKS (shareable achievements) -->
+      <section id="marksSection" class="marks" hidden>
+        <h2>your marks</h2>
+        <p class="marks-sub">little proofs you showed up. tap one to drop it on your story.</p>
+        <div id="marksGrid" class="marks-grid"></div>
       </section>
 
       <!-- MORE RUNS -->
@@ -138,6 +150,38 @@
       </form>
     </div>
 
+    <!-- LOG SHEET (honor-system: what you actually ran) -->
+    <div id="logSheet" class="sheet" hidden>
+      <div class="sheet-backdrop" data-log-close></div>
+      <form id="logForm" class="sheet-card" novalidate>
+        <button type="button" class="sheet-x" data-log-close aria-label="close">✕</button>
+        <h3>you ran it</h3>
+        <p class="sheet-sub" id="logRun">how'd it go?</p>
+
+        <div class="form-row">
+          <label>
+            your time
+            <input name="time" type="text" inputmode="numeric" placeholder="28:30" maxlength="9" />
+          </label>
+          <label>
+            distance (km)
+            <input name="distance" type="number" step="0.1" min="0" placeholder="5.0" />
+          </label>
+        </div>
+        <label>
+          one line about it (optional)
+          <input name="note" type="text" placeholder="walked the last bit. worth it." maxlength="120" />
+        </label>
+        <label>
+          strava link (optional)
+          <input name="stravaUrl" type="url" placeholder="https://strava.app.link/…" maxlength="200" />
+        </label>
+
+        <button type="submit" class="cta">log it →</button>
+        <p class="sheet-fine">no GPS, no tracking. just your word — that's the whole point.</p>
+      </form>
+    </div>
+
     <div id="toast" class="toast" hidden></div>
 
     <script
@@ -146,6 +190,7 @@
       crossorigin=""
     ></script>
     <script src="data.js"></script>
+    <script src="share.js"></script>
     <script src="app.js"></script>
   </body>
 </html>

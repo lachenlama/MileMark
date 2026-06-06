@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <title>MileMark · admin</title>
     <link
-      href="https://fonts.googleapis.com/css2?family=Anton&family=Manrope:wght@500;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;600;700&family=Manrope:wght@500;700;800;900&display=swap"
       rel="stylesheet"
     />
     <link
@@ -19,15 +19,21 @@
   <body class="admin">
     <header class="topbar">
       <a class="wordmark" href="index.html">MILE<span>MARK</span> · admin</a>
-      <a class="ghost-btn" href="index.html">view app →</a>
+      <div class="topbar-actions">
+        <button id="logoutBtn" class="ghost-btn">log out</button>
+        <a class="ghost-btn" href="index.html">view app →</a>
+      </div>
     </header>
 
     <main class="admin-main">
       <section class="admin-builder">
         <h1>build a run</h1>
         <p class="admin-hint">
-          tap the map to drop route points. drag any point to move it. the line
-          and distance update live.
+          tap the map to trace the route — the <b>first</b> point is the
+          <b>start</b>, the <b>last</b> is the <b>finish line</b>. tap as many
+          points as you want to follow the turns. drag a point to move it,
+          right-click / long-press to delete. distance updates live from the line
+          you draw.
         </p>
 
         <div id="adminMap" class="admin-map"></div>

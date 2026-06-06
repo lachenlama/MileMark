@@ -265,6 +265,36 @@ section h2 {
   border: 1px solid var(--line);
   color: var(--yellow);
 }
+
+/* logged runs — the confessional wall */
+.runner-item.logged {
+  border-left: 3px solid var(--green, #46e39c);
+}
+.runner-note {
+  display: block;
+  margin-top: 0.2rem;
+  font-family: "Caveat", cursive;
+  font-style: normal;
+  font-weight: 600;
+  font-size: 1.05rem;
+  line-height: 1.2;
+  color: var(--muted);
+  white-space: normal;
+}
+.ran-tag {
+  flex: 0 0 auto;
+  font-size: 0.68rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 0.3rem 0.6rem;
+  border-radius: 999px;
+  border: 1px solid rgba(70, 227, 156, 0.5);
+  color: #46e39c;
+}
+.ran-tag a {
+  color: inherit;
+  text-decoration: none;
+}
 .empty {
   color: var(--muted);
   font-style: italic;
@@ -551,6 +581,34 @@ section h2 {
   font-family: inherit;
 }
 
+/* handwritten start / finish labels on the route */
+.leaflet-tooltip.mm-tip {
+  background: rgba(8, 8, 8, 0.82);
+  border: 1px solid var(--line);
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
+  padding: 0.05rem 0.55rem 0.12rem;
+  border-radius: 10px;
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  font-size: 1.2rem;
+  line-height: 1.1;
+  color: var(--text);
+  white-space: nowrap;
+}
+.leaflet-tooltip.mm-tip-start {
+  color: var(--red);
+}
+.leaflet-tooltip.mm-tip-finish {
+  color: var(--yellow);
+}
+/* hide Leaflet's little arrow so it reads as a clean sticker */
+.leaflet-tooltip.mm-tip.leaflet-tooltip-top::before,
+.leaflet-tooltip.mm-tip.leaflet-tooltip-bottom::before,
+.leaflet-tooltip.mm-tip.leaflet-tooltip-left::before,
+.leaflet-tooltip.mm-tip.leaflet-tooltip-right::before {
+  display: none;
+}
+
 /* ===== run cards ===== */
 .run-cards {
   display: grid;
@@ -779,4 +837,272 @@ a.ghost-btn {
   text-decoration: none;
   display: inline-flex;
   align-items: center;
+}
+
+/* ===== the app noticing you ===== */
+.noted {
+  margin: 0.7rem 0 0;
+  padding: 0.7rem 1rem 0.7rem 1.1rem;
+  font-family: "Caveat", cursive;
+  font-weight: 600;
+  font-size: 1.32rem;
+  line-height: 1.25;
+  color: var(--text);
+  border-left: 2px dashed rgba(255, 212, 59, 0.6);
+}
+.noted span {
+  color: var(--yellow);
+}
+
+/* ===== your marks (achievements) ===== */
+.marks-sub {
+  color: var(--muted);
+  font-family: "Caveat", cursive;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: -0.6rem 0 1.1rem;
+}
+.marks-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.9rem;
+}
+@media (min-width: 520px) {
+  .marks-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+.mark {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.45rem;
+  text-align: center;
+  padding: 1.1rem 0.8rem 1rem;
+  background: var(--panel);
+  /* hand-drawn wobble: uneven corner radii */
+  border: 1.5px solid var(--line);
+  border-radius: 14px 18px 13px 17px / 17px 13px 18px 14px;
+  cursor: default;
+  transition: transform 0.12s ease, border-color 0.15s ease;
+}
+.mark.earned {
+  cursor: pointer;
+  border-color: rgba(255, 255, 255, 0.28);
+  border-style: solid;
+}
+.mark.earned:hover {
+  transform: translateY(-2px) rotate(-0.5deg);
+}
+.mark.earned:active {
+  transform: scale(0.97);
+}
+.mark.locked {
+  border-style: dashed;
+  opacity: 0.55;
+}
+.mark-glyph {
+  font-size: 2.5rem;
+  line-height: 1;
+  filter: drop-shadow(0 3px 8px rgba(0, 0, 0, 0.5));
+}
+.mark.locked .mark-glyph {
+  filter: grayscale(1);
+  opacity: 0.7;
+}
+.mark-name {
+  font-family: "Anton", sans-serif;
+  font-weight: 400;
+  text-transform: lowercase;
+  font-size: 1.12rem;
+  letter-spacing: 0.01em;
+}
+.mark-note {
+  font-family: "Caveat", cursive;
+  font-weight: 600;
+  font-size: 1.04rem;
+  line-height: 1.2;
+  color: var(--muted);
+}
+.mark-share {
+  margin-top: 0.2rem;
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 900;
+  color: var(--yellow);
+}
+.mark.locked .mark-share {
+  color: var(--muted);
+  text-transform: none;
+  letter-spacing: 0;
+  font-family: "Caveat", cursive;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.share-line-btn {
+  display: block;
+  width: 100%;
+  margin-top: 0.7rem;
+  border-style: dashed;
+  border-color: rgba(255, 212, 59, 0.5);
+  color: var(--yellow);
+}
+
+/* ===== this is you (on the wall) ===== */
+.runner-item.is-you {
+  border-color: var(--yellow);
+  background: linear-gradient(120deg, rgba(255, 212, 59, 0.12), transparent), var(--panel);
+}
+.you-tag {
+  flex: 0 0 auto;
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  font-size: 1.15rem;
+  color: var(--yellow);
+  white-space: nowrap;
+}
+
+/* ===== share modal ===== */
+.share-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+}
+.sm-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(6px);
+}
+.sm-card {
+  position: relative;
+  width: 100%;
+  max-width: 420px;
+  max-height: 94svh;
+  overflow-y: auto;
+  background: #0e0e0e;
+  border: 1.5px solid var(--line);
+  border-radius: 22px 26px 22px 26px / 26px 22px 26px 22px;
+  padding: 1.4rem 1.3rem calc(1.4rem + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 0.8rem;
+  animation: pop 0.22s ease;
+  text-align: center;
+}
+.sm-x {
+  position: absolute;
+  top: 0.9rem;
+  right: 1rem;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 1.1rem;
+  cursor: pointer;
+}
+.sm-kicker {
+  margin: 0;
+  font-family: "Caveat", cursive;
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--yellow);
+}
+.sm-card h3 {
+  font-family: "Anton", sans-serif;
+  font-weight: 400;
+  text-transform: lowercase;
+  font-size: 1.9rem;
+  margin: -0.5rem 0 0.2rem;
+}
+.sm-preview {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: #080808;
+  min-height: 120px;
+  display: grid;
+  place-items: center;
+}
+.sm-preview img {
+  display: block;
+  width: 100%;
+  height: auto;
+}
+.sm-actions {
+  display: grid;
+  gap: 0.5rem;
+}
+.sm-save {
+  width: 100%;
+}
+.sm-fine {
+  margin: 0;
+  color: #6c6862;
+  font-family: "Caveat", cursive;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+/* ===== admin login ===== */
+.login-main {
+  max-width: 420px;
+  margin: 0 auto;
+  padding: clamp(2.5rem, 12vw, 5rem) clamp(1rem, 5vw, 2rem);
+  display: grid;
+  place-items: center;
+  min-height: 60svh;
+}
+.login-card {
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 18px 22px 18px 22px / 22px 18px 22px 18px;
+  padding: 1.6rem 1.4rem calc(1.6rem + env(safe-area-inset-bottom));
+  display: grid;
+  gap: 0.9rem;
+}
+.login-card h1 {
+  font-size: clamp(2.6rem, 14vw, 3.6rem);
+  margin: 0;
+}
+.login-sub {
+  color: var(--muted);
+  font-family: "Caveat", cursive;
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: -0.5rem 0 0.4rem;
+}
+.login-card label {
+  display: grid;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  color: var(--muted);
+}
+.login-card input {
+  background: #161616;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.85rem 1rem;
+  color: var(--text);
+  font: inherit;
+  font-weight: 700;
+}
+.login-card input:focus {
+  outline: none;
+  border-color: var(--red);
+}
+.login-fine {
+  margin: 0;
+  text-align: center;
+  color: var(--red);
+  font-weight: 800;
+  font-size: 0.85rem;
 }

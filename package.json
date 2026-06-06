@@ -1,0 +1,10 @@
+{
+  "name": "milemark",
+  "version": "1.0.0",
+  "description": "A Strava-but-quieter run sign-up PWA for Not Another Cafe — shared wall, points, and shareable 'marks'.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "license": "UNLICENSED"
+}

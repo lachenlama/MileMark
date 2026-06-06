@@ -1,14 +1,13 @@
-// MileMark shared data layer — runs, runners, profiles, points/levels, route glyphs.
-// Loaded before app.js and admin.js. Exposes a global `MM`.
-// Everything is localStorage for now (per-device). Swap these helpers for a real
-// backend later (NotACafeGG server.js + Upstash Redis is the pattern to reuse).
+// MileMark shared data layer — now a thin client over the /api backend.
+// Loaded before share.js, app.js and admin.js. Exposes a global `MM`.
+//
+// The wall, runs, points, levels and "marks" all live on the server (server.js)
+// so every phone sees the same state. This module fetches a snapshot into a local
+// cache via MM.refresh(), then most accessors (featuredRun, getRunners, me,
+// achievementsFor…) read from that cache synchronously — so the render code stays
+// simple. Only the writes (join, admin run CRUD) and refresh are async.
 const MM = (() => {
-  const RUNS_KEY = "milemark:runs";
-  const PROFILES_KEY = "milemark:profiles";
-  const ME_KEY = "milemark:me";
-  const runnersKey = (runId) => "milemark:runners:" + runId;
-
-  // ---- gamification config ----
+  // ---- gamification config (display side) ----
   const POINTS_PER_RUN = 50;
   const LEVELS = [
     { min: 0, name: "just laced up" },
@@ -19,94 +18,58 @@ const MM = (() => {
     { min: 1300, name: "certified legend" },
   ];
 
+  // Badge *presentation* only — the server decides who's earned what (by id).
+  // Keep these ids in sync with ACHIEVEMENT_ORDER in server.js.
+  const ACHIEVEMENTS = [
+    { id: "first-mark", name: "first mark", glyph: "✺", tone: "#ff233d", note: "you showed up once. that's the whole thing.", hint: "sign up for your first run." },
+    { id: "front-row", name: "front row", glyph: "✶", tone: "#ffd43b", note: "first names on the wall. you set the tone for everyone after.", hint: "be one of the first 3 to sign up for a run." },
+    { id: "dawn-patrol", name: "dawn patrol", glyph: "☼", tone: "#ff8a3d", note: "you said yes to a 6am. most people don't.", hint: "sign up for a run that starts before 7am." },
+    { id: "golden-hour", name: "golden hour", glyph: "◐", tone: "#ffd43b", note: "you ran toward the light, not the clock.", hint: "sign up for an evening / sunset run." },
+    { id: "the-climb", name: "the climb", glyph: "▲", tone: "#7c9eff", note: "you didn't dodge the hill. it bit. you stayed.", hint: "sign up for a run with a climb in it." },
+    { id: "three-deep", name: "three deep", glyph: "❍", tone: "#46e39c", note: "three times now. the road's starting to remember you.", hint: "show up for 3 runs." },
+    { id: "the-regular", name: "the regular", glyph: "✸", tone: "#ff233d", note: "five in. they pour your coffee before you ask.", hint: "show up for 5 runs." },
+    { id: "first-finish", name: "first finish", glyph: "⚑", tone: "#46e39c", note: "you didn't just sign up. you finished, then said so.", hint: "log a run after you've done it." },
+    { id: "the-long-way", name: "the long way", glyph: "⟿", tone: "#7c9eff", note: "ten clicks in one go. you took the long way on purpose.", hint: "log a single run of 10km or more." },
+    { id: "the-distance", name: "the distance", glyph: "∞", tone: "#ffd43b", note: "forty-two km logged, all told — the distance of the myth.", hint: "log 42km total across your runs." },
+  ];
+
   // map default center — Salbari / Siliguri area, North Bengal
   const MAP_CENTER = [26.68, 88.38];
   const MAP_ZOOM = 14;
 
-  // ---- default runs (seeded once; admin manages them after) ----
-  const DEFAULT_RUNS = [
-    {
-      id: "run-zero-2026-06-07",
-      title: "the sunday slow one",
-      blurb:
-        "no medals. no leaderboard flexing. just the road, a bad playlist, and whoever shows up. walk it, run it, talk the whole way.",
-      startsAt: "2026-06-07T06:00:00+05:30",
-      where: "outside the cafe, Salbari",
-      distance: "",
-      featured: true,
-      route: [
-        [26.68, 88.38],
-        [26.6815, 88.382],
-        [26.683, 88.381],
-        [26.6835, 88.3785],
-        [26.682, 88.377],
-        [26.6805, 88.3782],
-        [26.68, 88.38],
-      ],
-    },
-    {
-      id: "run-hill-2026-06-14",
-      title: "the one with the hill",
-      blurb: "short but it bites. one climb, one view, then coffee. bring legs.",
-      startsAt: "2026-06-14T06:30:00+05:30",
-      where: "tba — we'll text the spot",
-      distance: "",
-      featured: false,
-      route: [
-        [26.676, 88.385],
-        [26.6775, 88.3865],
-        [26.679, 88.388],
-        [26.6805, 88.387],
-      ],
-    },
-    {
-      id: "run-sunset-2026-06-21",
-      title: "the golden hour jog",
-      blurb: "evening one. slow, easy, the sky doing its thing. no excuses about mornings.",
-      startsAt: "2026-06-21T17:00:00+05:30",
-      where: "tba",
-      distance: "",
-      featured: false,
-      route: [
-        [26.6845, 88.379],
-        [26.685, 88.3815],
-        [26.6862, 88.383],
-        [26.6855, 88.3855],
-      ],
-    },
-  ];
+  // ---- cached server snapshot ----
+  let state = { runs: [], runners: {} };
+  let meProfile = null;
+  let meLevel = null;
 
-  // ---- storage helpers ----
-  const read = (k, fb) => {
+  async function api(path, opts = {}) {
+    const res = await fetch(path, {
+      credentials: "same-origin",
+      headers: { "Content-Type": "application/json" },
+      ...opts,
+    });
+    let data = null;
     try {
-      const v = JSON.parse(localStorage.getItem(k));
-      return v == null ? fb : v;
+      data = await res.json();
     } catch {
-      return fb;
+      /* non-json */
     }
-  };
-  const write = (k, v) => localStorage.setItem(k, JSON.stringify(v));
+    if (!res.ok) throw new Error((data && data.error) || "request failed (" + res.status + ")");
+    return data;
+  }
 
+  // pull a fresh snapshot of the world + who-i-am
+  async function refresh() {
+    const [s, m] = await Promise.all([api("/api/state"), api("/api/me")]);
+    state = s && Array.isArray(s.runs) ? s : { runs: [], runners: {} };
+    meProfile = (m && m.member) || null;
+    meLevel = (m && m.level) || null;
+    return state;
+  }
+
+  // ---- sync accessors over the cache ----
   function getRuns() {
-    const stored = read(RUNS_KEY, null);
-    if (stored && Array.isArray(stored) && stored.length) return stored;
-    write(RUNS_KEY, DEFAULT_RUNS);
-    return DEFAULT_RUNS;
-  }
-  function saveRuns(runs) {
-    write(RUNS_KEY, runs);
-  }
-  function upsertRun(run) {
-    const runs = getRuns();
-    const i = runs.findIndex((r) => r.id === run.id);
-    if (run.featured) runs.forEach((r) => (r.featured = false)); // only one featured
-    if (i >= 0) runs[i] = run;
-    else runs.push(run);
-    saveRuns(runs);
-    return run;
-  }
-  function deleteRun(id) {
-    saveRuns(getRuns().filter((r) => r.id !== id));
+    return state.runs || [];
   }
   function featuredRun() {
     const runs = getRuns();
@@ -116,32 +79,16 @@ const MM = (() => {
     const f = featuredRun();
     return getRuns().filter((r) => r && r.id !== (f && f.id));
   }
-
-  // ---- runners (per run) ----
   function getRunners(runId) {
-    return read(runnersKey(runId), []);
-  }
-  function addRunner(runId, runner) {
-    const list = getRunners(runId);
-    list.push(runner);
-    write(runnersKey(runId), list);
-    return list;
-  }
-
-  // ---- profiles + points/levels ----
-  const normKey = (contact) =>
-    (contact || "").trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "");
-
-  function getProfiles() {
-    return read(PROFILES_KEY, {});
-  }
-  function getProfile(key) {
-    return getProfiles()[key] || null;
+    return state.runners[runId] || [];
   }
   function me() {
-    const k = read(ME_KEY, null);
-    return k ? getProfile(k) : null;
+    return meProfile;
   }
+  function myLevel() {
+    return meLevel || (meProfile ? levelFor(meProfile.points) : null);
+  }
+
   function levelFor(points) {
     let idx = 0;
     LEVELS.forEach((l, i) => {
@@ -161,35 +108,80 @@ const MM = (() => {
     };
   }
 
-  // registers the current person to a run, awards points, returns updated profile + level
-  function joinRun(runId, { alias, contact, pace, note }) {
-    const key = normKey(contact);
-    const profiles = getProfiles();
-    const p = profiles[key] || { key, alias, points: 0, runs: [] };
-    p.alias = alias; // keep latest display name
-    let awarded = 0;
-    if (!p.runs.includes(runId)) {
-      p.runs.push(runId);
-      p.points += POINTS_PER_RUN;
-      awarded = POINTS_PER_RUN;
-    }
-    profiles[key] = p;
-    write(PROFILES_KEY, profiles);
-    write(ME_KEY, key);
-
-    const level = levelFor(p.points);
-    addRunner(runId, {
-      alias,
-      contact,
-      pace,
-      note,
-      level: level.name,
-      at: Date.now(),
-    });
-    return { profile: p, level, awarded };
+  // merge the catalog with the earned-id set the server gave us
+  function achievementsFor(profile) {
+    const earned = new Set((profile && profile.badges) || []);
+    return ACHIEVEMENTS.map((b) => ({ ...b, earned: earned.has(b.id) }));
+  }
+  function earnedAchievements(profile) {
+    return achievementsFor(profile).filter((b) => b.earned);
   }
 
-  // ---- visual helpers ----
+  // ---- writes ----
+  async function join(runId, { alias, contact, pace, note }) {
+    const r = await api("/api/join", {
+      method: "POST",
+      body: JSON.stringify({ runId, alias, contact, pace, note }),
+    });
+    await refresh();
+    const newBadges = (r.newBadges || [])
+      .map((id) => ACHIEVEMENTS.find((b) => b.id === id))
+      .filter(Boolean);
+    return { profile: r.profile, level: r.level, awarded: r.awarded, newBadges };
+  }
+
+  async function log(runId, { durationSec, distanceKm, note, stravaUrl }) {
+    const r = await api("/api/log", {
+      method: "POST",
+      body: JSON.stringify({ runId, durationSec, distanceKm, note, stravaUrl }),
+    });
+    await refresh();
+    const newBadges = (r.newBadges || [])
+      .map((id) => ACHIEVEMENTS.find((b) => b.id === id))
+      .filter(Boolean);
+    return { profile: r.profile, level: r.level, result: r.result, newBadges };
+  }
+
+  // has the current member already logged this run?
+  function myResult(runId) {
+    const list = getRunners(runId);
+    const mine = list.find((r) => r.you);
+    return (mine && mine.result) || null;
+  }
+  // a run is loggable once it has started (honor-system: log it after)
+  function runStarted(run) {
+    return run && new Date(run.startsAt) <= new Date();
+  }
+
+  async function leaderboard() {
+    return (await api("/api/leaderboard")).leaders || [];
+  }
+
+  // ---- admin ----
+  async function upsertRun(run) {
+    return (await api("/api/runs", { method: "POST", body: JSON.stringify(run) })).run;
+  }
+  async function deleteRun(id) {
+    return api("/api/runs/" + encodeURIComponent(id), { method: "DELETE" });
+  }
+  async function adminLogin(password) {
+    return api("/api/admin/login", { method: "POST", body: JSON.stringify({ password }) });
+  }
+  async function adminLogout() {
+    return api("/api/admin/logout", { method: "POST" });
+  }
+  async function adminMe() {
+    try {
+      return (await api("/api/admin/me")).admin === true;
+    } catch {
+      return false;
+    }
+  }
+
+  // ---- visual helpers (pure) ----
+  const normKey = (contact) =>
+    (contact || "").trim().toLowerCase().replace(/^@/, "").replace(/\s+/g, "");
+
   function initials(name) {
     const parts = (name || "")
       .trim()
@@ -205,7 +197,6 @@ const MM = (() => {
     return palette[h % palette.length];
   }
 
-  // haversine distance of a route in km
   function routeKm(route) {
     if (!route || route.length < 2) return 0;
     const R = 6371;
@@ -225,7 +216,6 @@ const MM = (() => {
     return km;
   }
 
-  // little SVG sketch of a route (no tiles) for run cards
   let glyphSeq = 0;
   function routeGlyph(route) {
     if (!route || route.length < 2) {
@@ -261,8 +251,6 @@ const MM = (() => {
     </svg>`;
   }
 
-  // base map tile layers (same OSM data, different looks). `streets` and
-  // `satellite` show landmarks/labels clearly; `dark` is the on-brand vibe.
   function tileLayers() {
     return {
       streets: L.tileLayer(
@@ -296,27 +284,49 @@ const MM = (() => {
     });
   }
 
+  // seconds -> "28:30" or "1:05:00"
+  function formatTime(sec) {
+    sec = Math.max(0, Math.round(sec || 0));
+    const h = Math.floor(sec / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
+    const pad = (n) => String(n).padStart(2, "0");
+    return h ? h + ":" + pad(m) + ":" + pad(s) : m + ":" + pad(s);
+  }
+
   return {
     MAP_CENTER,
     MAP_ZOOM,
     LEVELS,
     POINTS_PER_RUN,
+    ACHIEVEMENTS,
+    refresh,
     getRuns,
-    saveRuns,
-    upsertRun,
-    deleteRun,
     featuredRun,
     otherRuns,
     getRunners,
-    joinRun,
-    getProfile,
     me,
+    myLevel,
     levelFor,
+    achievementsFor,
+    earnedAchievements,
+    join,
+    log,
+    myResult,
+    runStarted,
+    leaderboard,
+    upsertRun,
+    deleteRun,
+    adminLogin,
+    adminLogout,
+    adminMe,
+    normKey,
     initials,
     avatarColor,
     routeKm,
     routeGlyph,
     tileLayers,
     whenText,
+    formatTime,
   };
 })();

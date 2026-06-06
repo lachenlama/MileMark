@@ -1,13 +1,14 @@
 // MileMark service worker — offline shell cache.
-const CACHE = "milemark-v3";
+const CACHE = "milemark-v5";
+// Only the public shell is precached. Admin pages are gated server-side, and the
+// API is never cached (see fetch handler) so the shared wall always stays fresh.
 const ASSETS = [
   "./",
   "./index.html",
-  "./admin.html",
   "./styles.css",
   "./data.js",
   "./app.js",
-  "./admin.js",
+  "./share.js",
   "./manifest.webmanifest",
   "./icons/icon-192.png",
   "./icons/icon-512.png",
@@ -34,6 +35,18 @@ self.addEventListener("activate", (e) => {
 self.addEventListener("fetch", (e) => {
   const { request } = e;
   if (request.method !== "GET") return;
+
+  const url = new URL(request.url);
+  // never cache the API (the shared wall must be live) or the gated admin pages
+  if (
+    url.origin === location.origin &&
+    (url.pathname.startsWith("/api/") ||
+      url.pathname === "/admin.html" ||
+      url.pathname === "/admin.js" ||
+      url.pathname === "/admin-login.html")
+  ) {
+    return; // let the browser hit the network directly
+  }
 
   if (request.mode === "navigate") {
     e.respondWith(
