@@ -216,6 +216,21 @@ function renderWall(runId) {
     }
     ul.appendChild(li);
   }
+  updateWallFade();
+}
+
+// show the bottom fade only while the wall has more entries below the fold
+function updateWallFade() {
+  const box = $(".runner-scroll");
+  const wall = $(".runner-wall");
+  if (!box || !wall) return;
+  const more = box.scrollHeight - box.clientHeight - box.scrollTop > 4;
+  wall.classList.toggle("has-more", more);
+  if (!box.dataset.fadeWired) {
+    box.addEventListener("scroll", updateWallFade, { passive: true });
+    window.addEventListener("resize", updateWallFade);
+    box.dataset.fadeWired = "1";
+  }
 }
 
 function resultLine(res) {
@@ -282,7 +297,11 @@ function openSheet(run) {
   $("#sheetRun").textContent = "for “" + run.title + "”";
   const p = MM.me();
   if (p) {
-    $('#joinForm input[name="alias"]').value = p.alias || "";
+    const f = $("#joinForm");
+    f.alias.value = p.alias || "";
+    if (f.phone) f.phone.value = p.phone || "";
+    if (f.email) f.email.value = p.email || "";
+    if (f.ig) f.ig.value = p.ig || "";
   }
   $("#sheet").hidden = false;
   document.body.style.overflow = "hidden";
@@ -376,8 +395,13 @@ async function handleSubmit(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
   const alias = (fd.get("alias") || "").toString().trim();
-  const contact = (fd.get("contact") || "").toString().trim();
-  if (!alias || !contact) return toast("need a name and a way to reach you");
+  const phone = (fd.get("phone") || "").toString().trim();
+  const email = (fd.get("email") || "").toString().trim();
+  const ig = (fd.get("ig") || "").toString().trim();
+
+  if (!alias) return toast("tell us what to call you");
+  if (phone.replace(/\D/g, "").length < 7) return toast("enter a valid phone number");
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return toast("enter a valid email");
 
   const submitBtn = e.target.querySelector('button[type="submit"]');
   if (submitBtn) submitBtn.disabled = true;
@@ -386,7 +410,9 @@ async function handleSubmit(e) {
   try {
     result = await MM.join(activeRunId, {
       alias,
-      contact,
+      phone,
+      email,
+      ig,
       pace: (fd.get("pace") || "just here for it").toString(),
       note: (fd.get("note") || "").toString().trim(),
     });
@@ -500,6 +526,7 @@ async function init() {
   try {
     await MM.refresh();
   } catch (e) {
+    console.error("MileMark: /api/state failed —", e);
     toast("couldn't reach the server — pull to retry");
   }
   renderAll();

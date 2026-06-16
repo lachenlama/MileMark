@@ -118,10 +118,10 @@ const MM = (() => {
   }
 
   // ---- writes ----
-  async function join(runId, { alias, contact, pace, note }) {
+  async function join(runId, { alias, phone, email, ig, pace, note }) {
     const r = await api("/api/join", {
       method: "POST",
-      body: JSON.stringify({ runId, alias, contact, pace, note }),
+      body: JSON.stringify({ runId, alias, phone, email, ig, pace, note }),
     });
     await refresh();
     const newBadges = (r.newBadges || [])

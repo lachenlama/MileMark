@@ -272,6 +272,11 @@ function publicProfile(p) {
   return {
     key: p.key,
     alias: p.alias,
+    // the member's own contact details — only ever returned to that member (me/join/log),
+    // never in the public wall or leaderboard, so they're safe to send back for prefill.
+    email: p.email || "",
+    phone: p.phone || "",
+    ig: p.ig || "",
     points: p.points,
     runs: p.runs,
     badges: p.badges,
@@ -422,7 +427,7 @@ async function handleApi(req, res, pathname) {
         pace: r.pace,
         level: r.level,
         at: r.at,
-        you: !!meKey && normKey(r.contact) === meKey,
+        you: !!meKey && normKey(r.email || r.contact) === meKey,
         result: r.result || null, // honor-system log: { durationSec, distanceKm, note, stravaUrl, at }
       }));
     }
@@ -448,31 +453,62 @@ async function handleApi(req, res, pathname) {
     const body = await readBody(req);
     const runId = String(body.runId || "");
     const alias = String(body.alias || "").trim().slice(0, 40);
-    const contact = String(body.contact || "").trim().slice(0, 60);
+    const email = String(body.email || "").trim().toLowerCase().slice(0, 120);
+    const phone = String(body.phone || "").trim().slice(0, 30);
+    const ig = String(body.ig || "").trim().replace(/^@/, "").slice(0, 40);
     const pace = String(body.pace || "just here for it").slice(0, 40);
     const note = String(body.note || "").trim().slice(0, 80);
     const run = db.runs.find((r) => r.id === runId);
 
+    const phoneDigits = phone.replace(/\D/g, "");
+    // compare by the last 10 digits so "+91 99900 01111" and "9990001111" are the same person
+    const phoneTail = phoneDigits.slice(-10);
     if (!run) return sendJson(res, 404, { error: "That run doesn't exist anymore." });
-    if (!alias || !contact) return sendJson(res, 400, { error: "Need a name and a way to reach you." });
+    if (!alias) return sendJson(res, 400, { error: "Tell us what to call you." });
+    if (phoneDigits.length < 7) return sendJson(res, 400, { error: "Enter a valid phone number." });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+      return sendJson(res, 400, { error: "Enter a valid email." });
 
-    const key = normKey(contact);
+    // identity = email. one person gets one spot per run, matched by email OR phone,
+    // so the same person can't sign up twice (even from a new device or a 2nd email).
+    const key = normKey(email);
+    db.runners[runId] = db.runners[runId] || [];
+    const existing = db.runners[runId].find(
+      (r) =>
+        normKey(r.email || r.contact) === key ||
+        (r.phone && r.phone.replace(/\D/g, "").slice(-10) === phoneTail)
+    );
+
+    // "same identity" = matched by their own email; a phone-only match under a different
+    // email is someone else's spot, so we block without ever touching that person's record.
+    const sameIdentity = existing && normKey(existing.email || existing.contact) === key;
+
     const profile = db.profiles[key] || { key, alias, points: 0, runs: [], badges: [] };
     profile.alias = alias;
+    profile.email = email;
+    profile.phone = phone;
+    profile.ig = ig;
 
     let awarded = 0;
-    if (!profile.runs.includes(runId)) {
-      profile.runs.push(runId);
+    if (!existing) {
+      if (!profile.runs.includes(runId)) profile.runs.push(runId);
       profile.points += POINTS_PER_RUN;
       awarded = POINTS_PER_RUN;
     }
     const level = levelFor(profile.points);
 
-    db.runners[runId] = db.runners[runId] || [];
-    const onWall = db.runners[runId].some((r) => normKey(r.contact) === key);
-    if (!onWall) {
-      db.runners[runId].push({ alias, contact, pace, note, level: level.name, at: Date.now() });
+    if (!existing) {
+      db.runners[runId].push({
+        alias, email, contact: email, phone, ig, pace, note, level: level.name, at: Date.now(),
+      });
+    } else if (sameIdentity) {
+      // the same person editing their own entry — refresh details, no dup row, no extra points
+      Object.assign(existing, {
+        alias, email, contact: email, phone, ig, pace,
+        note: note || existing.note || "", level: level.name,
+      });
     }
+    // else: phone already on the wall under a different email — silently blocked (already=true)
 
     const prev = profile.badges || [];
     const earned = achievementIdsFor(profile, db);
@@ -484,7 +520,7 @@ async function handleApi(req, res, pathname) {
     sendJson(
       res,
       200,
-      { profile: publicProfile(profile), level, awarded, newBadges, badges: earned },
+      { profile: publicProfile(profile), level, awarded, newBadges, badges: earned, already: !!existing },
       { "Set-Cookie": memberCookieHeader(key) }
     );
     return;

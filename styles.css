@@ -8,6 +8,14 @@
   --red: #ff233d;
   --yellow: #ffd43b;
   --radius: 16px;
+
+  /* ---- type system ---- */
+  /* display: tall, dense, poster-like — the club's loud voice */
+  --font-display: "Anton", "Arial Narrow", system-ui, sans-serif;
+  /* body & UI: a humanist grotesque — crisp for stats, warm for community copy */
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", sans-serif;
+  /* the human touch on the wall */
+  --font-script: "Caveat", "Segoe Script", cursive;
 }
 
 * {
@@ -25,9 +33,12 @@ body {
     radial-gradient(circle at 88% 8%, rgba(255, 212, 59, 0.12), transparent 36%),
     var(--bg);
   color: var(--text);
-  font-family: "Manrope", system-ui, sans-serif;
-  font-weight: 700;
+  font-family: var(--font-body);
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.005em;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
   min-height: 100svh;
 }
 
@@ -47,7 +58,7 @@ body {
 }
 
 .wordmark {
-  font-family: "Anton", sans-serif;
+  font-family: var(--font-display);
   letter-spacing: 0.06em;
   font-size: 1.35rem;
   color: var(--text);
@@ -67,6 +78,11 @@ body {
   font-weight: 800;
   font-size: 0.85rem;
   cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.08s ease;
+}
+.ghost-btn:hover {
+  border-color: rgba(255, 255, 255, 0.32);
+  background: rgba(255, 255, 255, 0.04);
 }
 .ghost-btn:active {
   transform: scale(0.96);
@@ -93,7 +109,7 @@ main {
 }
 
 h1 {
-  font-family: "Anton", sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   letter-spacing: 0.01em;
   line-height: 0.94;
@@ -128,17 +144,30 @@ h1 {
 }
 .cd-unit span {
   display: block;
-  font-family: "Anton", sans-serif;
-  font-size: clamp(1.6rem, 7vw, 2.3rem);
+  font-family: var(--font-display);
+  font-size: clamp(1.7rem, 7.5vw, 2.5rem);
   line-height: 1;
+  /* fixed-width lining digits so the clock doesn't jiggle as it ticks */
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
 }
 .cd-unit label {
   display: block;
-  margin-top: 0.35rem;
-  font-size: 0.65rem;
-  letter-spacing: 0.18em;
+  margin-top: 0.4rem;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   color: var(--muted);
+}
+/* every stat reads like a race clock — fixed-width lining digits */
+.count-line span,
+.pc-meta,
+.run-meta dd,
+.map-tag,
+.pace-tag,
+.ran-tag {
+  font-variant-numeric: tabular-nums lining-nums;
 }
 
 /* ---- run meta ---- */
@@ -184,13 +213,20 @@ h1 {
   cursor: pointer;
   text-transform: lowercase;
   letter-spacing: 0.01em;
-  transition: transform 0.08s ease, filter 0.15s ease;
+  box-shadow: 0 12px 30px -12px rgba(255, 35, 61, 0.6);
+  transition: transform 0.08s ease, filter 0.15s ease, box-shadow 0.15s ease;
 }
 .cta:hover {
   filter: brightness(1.08);
+  box-shadow: 0 16px 36px -12px rgba(255, 35, 61, 0.72);
 }
 .cta:active {
   transform: scale(0.98);
+}
+.cta:disabled {
+  filter: saturate(0.6) brightness(0.8);
+  box-shadow: none;
+  cursor: progress;
 }
 
 .count-line {
@@ -206,11 +242,53 @@ h1 {
 
 /* ---- sections ---- */
 section h2 {
-  font-family: "Anton", sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   text-transform: lowercase;
   font-size: clamp(1.6rem, 7vw, 2.2rem);
   margin: 2.5rem 0 1.2rem;
+}
+
+/* compact, scrollable box so a long sign-up list stays a small section on a phone */
+.runner-wall {
+  position: relative;
+}
+.runner-scroll {
+  max-height: 19rem; /* ~4 entries tall; scroll for the rest */
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  padding: 2px; /* keep borders/focus rings off the edge */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.25) transparent;
+}
+.runner-scroll::-webkit-scrollbar {
+  width: 8px;
+}
+.runner-scroll::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.18);
+  border-radius: 999px;
+}
+.runner-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+/* a fade at the bottom edge, shown only while there's more to scroll to */
+.runner-wall::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 42px;
+  pointer-events: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: linear-gradient(transparent, var(--bg));
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+.runner-wall.has-more::after {
+  opacity: 1;
 }
 
 .runner-list {
@@ -236,7 +314,7 @@ section h2 {
   border-radius: 50%;
   display: grid;
   place-items: center;
-  font-family: "Anton", sans-serif;
+  font-family: var(--font-display);
   font-size: 1.05rem;
   color: #080808;
 }
@@ -273,7 +351,7 @@ section h2 {
 .runner-note {
   display: block;
   margin-top: 0.2rem;
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-style: normal;
   font-weight: 600;
   font-size: 1.05rem;
@@ -319,6 +397,20 @@ section h2 {
   font-size: 0.8rem;
   font-weight: 600;
   letter-spacing: 0.08em;
+}
+.footer-admin {
+  display: inline-block;
+  margin-top: 1.1rem;
+  color: #4a4843;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+.footer-admin:hover {
+  color: var(--muted);
 }
 
 /* ---- register sheet ---- */
@@ -366,7 +458,7 @@ section h2 {
   cursor: pointer;
 }
 .sheet-card h3 {
-  font-family: "Anton", sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   text-transform: lowercase;
   font-size: 1.8rem;
@@ -385,7 +477,11 @@ section h2 {
   letter-spacing: 0.12em;
   color: var(--muted);
 }
-.sheet-card input[type="text"] {
+.sheet-card input[type="text"],
+.sheet-card input[type="tel"],
+.sheet-card input[type="email"],
+.sheet-card input[type="number"],
+.sheet-card input[type="url"] {
   background: #161616;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -395,6 +491,7 @@ section h2 {
   font-weight: 700;
   text-transform: none;
   letter-spacing: 0;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
 .sheet-card input::placeholder {
   color: #6c6862;
@@ -402,6 +499,13 @@ section h2 {
 .sheet-card input:focus {
   outline: none;
   border-color: var(--red);
+  box-shadow: 0 0 0 3px rgba(255, 35, 61, 0.18);
+}
+/* the "(optional)" hint next to a field label */
+.opt {
+  color: #6c6862;
+  font-weight: 700;
+  letter-spacing: 0.06em;
 }
 
 .pace {
@@ -588,7 +692,7 @@ section h2 {
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.45);
   padding: 0.05rem 0.55rem 0.12rem;
   border-radius: 10px;
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-weight: 700;
   font-size: 1.2rem;
   line-height: 1.1;
@@ -650,7 +754,7 @@ section h2 {
   flex: 1;
 }
 .rc-body h3 {
-  font-family: "Anton", sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   text-transform: lowercase;
   font-size: 1.4rem;
@@ -843,7 +947,7 @@ a.ghost-btn {
 .noted {
   margin: 0.7rem 0 0;
   padding: 0.7rem 1rem 0.7rem 1.1rem;
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-weight: 600;
   font-size: 1.32rem;
   line-height: 1.25;
@@ -857,7 +961,7 @@ a.ghost-btn {
 /* ===== your marks (achievements) ===== */
 .marks-sub {
   color: var(--muted);
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-size: 1.25rem;
   font-weight: 600;
   margin: -0.6rem 0 1.1rem;
@@ -912,14 +1016,14 @@ a.ghost-btn {
   opacity: 0.7;
 }
 .mark-name {
-  font-family: "Anton", sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   text-transform: lowercase;
   font-size: 1.12rem;
   letter-spacing: 0.01em;
 }
 .mark-note {
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-weight: 600;
   font-size: 1.04rem;
   line-height: 1.2;
@@ -937,7 +1041,7 @@ a.ghost-btn {
   color: var(--muted);
   text-transform: none;
   letter-spacing: 0;
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-size: 0.95rem;
   font-weight: 600;
 }
@@ -958,7 +1062,7 @@ a.ghost-btn {
 }
 .you-tag {
   flex: 0 0 auto;
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-weight: 700;
   font-size: 1.15rem;
   color: var(--yellow);
@@ -1008,13 +1112,13 @@ a.ghost-btn {
 }
 .sm-kicker {
   margin: 0;
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-weight: 700;
   font-size: 1.25rem;
   color: var(--yellow);
 }
 .sm-card h3 {
-  font-family: "Anton", sans-serif;
+  font-family: var(--font-display);
   font-weight: 400;
   text-transform: lowercase;
   font-size: 1.9rem;
@@ -1044,7 +1148,7 @@ a.ghost-btn {
 .sm-fine {
   margin: 0;
   color: #6c6862;
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-size: 1rem;
   font-weight: 600;
 }
@@ -1073,7 +1177,7 @@ a.ghost-btn {
 }
 .login-sub {
   color: var(--muted);
-  font-family: "Caveat", cursive;
+  font-family: var(--font-script);
   font-size: 1.25rem;
   font-weight: 600;
   margin: -0.5rem 0 0.4rem;
@@ -1105,4 +1209,312 @@ a.ghost-btn {
   color: var(--red);
   font-weight: 800;
   font-size: 0.85rem;
+}
+
+/* ===== happenings (the stuff around the run) ===== */
+.happenings {
+  margin-top: 1rem;
+}
+.happenings .eyebrow {
+  margin-bottom: 0.6rem;
+}
+.happenings h2 {
+  margin-top: 0.2rem;
+}
+.happenings-sub {
+  color: var(--muted);
+  font-weight: 600;
+  font-size: clamp(0.98rem, 3.2vw, 1.1rem);
+  line-height: 1.5;
+  max-width: 48ch;
+  margin: -0.4rem 0 1.3rem;
+}
+
+/* the run's afterparty, as a swipeable carousel */
+.hap-carousel {
+  position: relative;
+}
+.hap-grid {
+  display: flex;
+  gap: 1rem;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 0.25rem;
+}
+.hap-grid::-webkit-scrollbar {
+  display: none;
+}
+/* one event per slide — each card fills the whole carousel viewport */
+.hap-card {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+}
+
+/* arrow controls — float over the art, fade out at the ends */
+.hap-nav {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 3;
+  width: 46px;
+  height: 46px;
+  display: grid;
+  place-items: center;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: rgba(8, 8, 8, 0.6);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  color: var(--text);
+  font-size: 1.6rem;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity 0.15s ease, background 0.15s ease, border-color 0.15s ease;
+}
+.hap-prev {
+  left: 10px;
+}
+.hap-next {
+  right: 10px;
+}
+.hap-nav:hover {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(8, 8, 8, 0.85);
+}
+.hap-nav:disabled {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* dot pagination */
+.hap-dots {
+  display: flex;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+.hap-dots[hidden] {
+  display: none;
+}
+.hap-dot-btn {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: var(--line);
+  cursor: pointer;
+  transition: width 0.18s ease, background 0.18s ease;
+}
+.hap-dot-btn.is-active {
+  width: 22px;
+  background: var(--yellow);
+}
+
+.hap-card {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  min-height: clamp(360px, 64vw, 460px);
+  overflow: hidden;
+  background: #0e0e0e;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 50px -28px var(--hap-accent, rgba(255, 212, 59, 0.35));
+}
+.hap-cold {
+  --hap-accent: rgba(99, 198, 255, 0.45);
+}
+.hap-cali {
+  --hap-accent: rgba(255, 35, 61, 0.4);
+}
+.hap-coffee {
+  --hap-accent: rgba(255, 212, 59, 0.4);
+}
+.hap-play {
+  --hap-accent: rgba(160, 120, 255, 0.45);
+}
+.hap-rave {
+  --hap-accent: rgba(255, 35, 61, 0.5);
+}
+
+/* the illustrated scene — fills the whole slide as a backdrop */
+.hap-art {
+  position: absolute;
+  inset: 0;
+  background: #0e0e0e;
+  line-height: 0;
+}
+.hap-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+/* the slide photograph — fills the frame, slow zoom while it's the active slide */
+.hap-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transform: scale(1.04);
+  transition: transform 6s ease-out;
+}
+.hap-card.is-current .hap-img {
+  transform: scale(1.12);
+}
+@media (prefers-reduced-motion: reduce) {
+  .hap-img {
+    transition: none;
+    transform: none;
+  }
+}
+/* scrim so the overlaid text stays readable over any scene */
+.hap-art::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(
+    to top,
+    rgba(8, 8, 8, 0.94) 0%,
+    rgba(8, 8, 8, 0.7) 32%,
+    rgba(8, 8, 8, 0.15) 62%,
+    rgba(8, 8, 8, 0) 80%
+  );
+}
+
+.hap-content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  width: 100%;
+  padding: 1.5rem 1.6rem 1.7rem;
+}
+.hap-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.6rem;
+}
+.hap-kicker {
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  font-weight: 900;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--line);
+  padding: 0.28rem 0.6rem;
+  border-radius: 999px;
+}
+
+/* status badge — at-a-glance "is this on right now?" */
+.hap-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.62rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 900;
+  color: var(--muted);
+  white-space: nowrap;
+}
+.hap-status.is-live {
+  color: #46e39c;
+}
+.hap-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #46e39c;
+  box-shadow: 0 0 0 0 rgba(70, 227, 156, 0.6);
+  animation: hapPulse 1.8s ease-out infinite;
+}
+@keyframes hapPulse {
+  70% {
+    box-shadow: 0 0 0 7px rgba(70, 227, 156, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(70, 227, 156, 0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hap-dot {
+    animation: none;
+  }
+}
+/* ---- scene motion (subtle; disabled for reduced-motion) ---- */
+.hap-svg .eq-bar {
+  transform-box: fill-box;
+  transform-origin: bottom;
+  animation: eqPulse 0.85s ease-in-out infinite alternate;
+}
+@keyframes eqPulse {
+  from {
+    transform: scaleY(0.28);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+.hap-svg .steam,
+.hap-svg .vapor {
+  animation: drift 4.5s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+@keyframes drift {
+  50% {
+    opacity: 0.5;
+    transform: translateY(-4px);
+  }
+}
+.hap-svg .beams {
+  transform-origin: center top;
+  animation: sway 6s ease-in-out infinite;
+}
+@keyframes sway {
+  50% {
+    transform: rotate(2deg);
+    opacity: 0.85;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hap-svg .eq-bar,
+  .hap-svg .steam,
+  .hap-svg .vapor,
+  .hap-svg .beams {
+    animation: none;
+  }
+}
+.hap-card h3 {
+  font-family: var(--font-display);
+  font-weight: 400;
+  text-transform: lowercase;
+  font-size: clamp(1.9rem, 6.5vw, 2.6rem);
+  line-height: 1.02;
+  letter-spacing: 0.01em;
+  margin: 0.1rem 0 0;
+}
+.hap-blurb {
+  color: rgba(255, 255, 255, 0.82);
+  font-weight: 600;
+  font-size: clamp(0.92rem, 3vw, 1.02rem);
+  line-height: 1.5;
+  margin: 0;
+  max-width: 46ch;
+}
+.hap-meta {
+  margin-top: 0.4rem;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-weight: 800;
+  color: var(--yellow);
 }

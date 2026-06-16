@@ -17,8 +17,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="MileMark" />
 
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link
-      href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;600;700&family=Manrope:wght@500;700;800;900&display=swap"
+      href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap"
       rel="stylesheet"
     />
     <!-- Leaflet (map) -->
@@ -34,7 +36,6 @@
     <header class="topbar">
       <a class="wordmark" href="#top">MILE<span>MARK</span></a>
       <div class="topbar-actions">
-        <a class="ghost-btn" href="admin.html">admin</a>
         <button id="installBtn" class="ghost-btn" hidden>install</button>
       </div>
     </header>
@@ -90,10 +91,30 @@
         <p class="count-line"><span id="countNum">0</span> showing up so far</p>
       </section>
 
+      <!-- HAPPENINGS — the stuff around the run -->
+      <section class="happenings" id="happenings">
+        <p class="eyebrow">more than a run</p>
+        <h2>what else is on</h2>
+        <p class="happenings-sub">the run is the excuse. this is the rest of the day — cold water, coffee, controllers, and people who stayed.</p>
+
+        <div class="hap-carousel">
+          <button class="hap-nav hap-prev" id="hapPrev" type="button" aria-label="previous" disabled>‹</button>
+          <div class="hap-grid" id="hapGrid"></div>
+          <button class="hap-nav hap-next" id="hapNext" type="button" aria-label="next">›</button>
+        </div>
+        <div class="hap-dots" id="hapDots" aria-hidden="true"></div>
+
+        <p class="count-line"><span id="hapCount">—</span></p>
+      </section>
+
       <!-- WHO'S SHOWING UP (featured run) -->
       <section class="wall">
         <h2>who's showing up</h2>
-        <ul id="runnerList" class="runner-list"></ul>
+        <div class="runner-wall">
+          <div class="runner-scroll">
+            <ul id="runnerList" class="runner-list"></ul>
+          </div>
+        </div>
         <p id="emptyState" class="empty">nobody yet. be the first name on the wall.</p>
       </section>
 
@@ -113,6 +134,7 @@
       <footer class="footer">
         <p>a not another run</p>
         <p class="dim">MileMark</p>
+        <a class="footer-admin" href="admin.html" aria-label="organiser admin">organisers ·&nbsp;admin</a>
       </footer>
     </main>
 
@@ -129,8 +151,16 @@
           <input name="alias" type="text" placeholder="alias or real name" required maxlength="40" />
         </label>
         <label>
-          how do we reach you
-          <input name="contact" type="text" placeholder="insta @ or phone" required maxlength="60" />
+          phone number
+          <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 98765 43210" required maxlength="30" />
+        </label>
+        <label>
+          email
+          <input name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required maxlength="120" />
+        </label>
+        <label>
+          instagram <span class="opt">(optional)</span>
+          <input name="ig" type="text" autocomplete="off" placeholder="@yourhandle" maxlength="40" />
         </label>
 
         <fieldset class="pace">
@@ -192,5 +222,6 @@
     <script src="data.js"></script>
     <script src="share.js"></script>
     <script src="app.js"></script>
+    <script src="events.js"></script>
   </body>
 </html>
