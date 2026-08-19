@@ -8,6 +8,7 @@
   --red: #ff233d;
   --yellow: #ffd43b;
   --radius: 16px;
+  --gutter: clamp(1rem, 5vw, 2rem);
 
   /* ---- type system ---- */
   /* display: tall, dense, poster-like — the club's loud voice */
@@ -91,7 +92,7 @@ body {
 main {
   max-width: 720px;
   margin: 0 auto;
-  padding: 0 clamp(1rem, 5vw, 2rem) 4rem;
+  padding: 0 var(--gutter) 4rem;
 }
 
 /* ---- hero ---- */
@@ -658,15 +659,36 @@ section h2 {
 /* ===== map ===== */
 .map-wrap {
   position: relative;
-  margin: 0 0 2rem;
+  /* bleed past main's gutter so the map is the widest thing on the page —
+     full viewport width on phones, edge of the reading column beyond that */
+  margin: 0 calc(var(--gutter) * -1) 2rem;
   border-radius: var(--radius);
   overflow: hidden;
   border: 1px solid var(--line);
 }
 #map {
-  height: 260px;
   width: 100%;
+  aspect-ratio: 4 / 5;
+  max-height: 520px;
   background: #0e0e0e;
+}
+@media (min-width: 640px) {
+  #map {
+    aspect-ratio: 16 / 9;
+    max-height: 420px;
+  }
+}
+/* bigger touch targets for zoom/layer controls on phones */
+@media (max-width: 640px) {
+  .leaflet-control-zoom a,
+  .leaflet-control-layers-toggle {
+    width: 40px;
+    height: 40px;
+    line-height: 40px;
+  }
+  .leaflet-control-layers-toggle {
+    background-size: 24px 24px;
+  }
 }
 .map-tag {
   position: absolute;
