@@ -152,20 +152,28 @@ async function saveRun(e) {
     startsAt: new Date(startsAt).toISOString(),
     where: (fd.get("where") || "").toString().trim(),
     distance: (fd.get("distance") || "").toString().trim(),
+    status: (fd.get("status") || "scheduled").toString(),
+    statusNote: (fd.get("statusNote") || "").toString().trim(),
     featured: fd.get("featured") === "on",
+    notifyPush: fd.get("notifyPush") === "on",
     route: route.slice(),
   };
   const btn = e.target.querySelector('button[type="submit"]');
   if (btn) btn.disabled = true;
+  let saveRes;
   try {
-    await MM.upsertRun(run);
+    saveRes = await MM.upsertRun(run);
     await MM.refresh();
   } catch (err) {
     if (btn) btn.disabled = false;
     return toast(err.message || "couldn't save — are you still logged in?");
   }
   if (btn) btn.disabled = false;
-  toast(editingId ? "run updated ✓" : "run saved ✓");
+  if (run.notifyPush) {
+    toast(editingId ? "run updated & push alert broadcast ✓" : "run saved & push alert broadcast ✓");
+  } else {
+    toast(editingId ? "run updated ✓" : "run saved ✓");
+  }
   resetForm();
   renderRuns();
 }
@@ -179,7 +187,10 @@ function loadRun(run) {
   f.startsAt.value = isoToLocalInput(run.startsAt);
   f.where.value = run.where || "";
   f.distance.value = run.distance || "";
+  f.status.value = run.status || "scheduled";
+  f.statusNote.value = run.statusNote || "";
   f.featured.checked = !!run.featured;
+  f.notifyPush.checked = false;
   route = (run.route || []).map((p) => [p[0], p[1]]);
   redrawRoute();
   if (route.length) map.fitBounds(L.polyline(route).getBounds().pad(0.25));
@@ -191,6 +202,9 @@ function resetForm() {
   editingId = null;
   $("#runForm").reset();
   $("#runForm").id.value = "";
+  $("#runForm").status.value = "scheduled";
+  $("#runForm").statusNote.value = "";
+  $("#runForm").notifyPush.checked = false;
   route = [];
   redrawRoute();
 }
@@ -204,25 +218,38 @@ function renderRuns() {
     wrap.innerHTML = '<p class="empty">no runs yet — build one above.</p>';
     return;
   }
+  const frag = document.createDocumentFragment();
   for (const run of runs) {
     const km = MM.routeKm(run.route);
     const count = MM.getRunners(run.id).length;
     const row = document.createElement("article");
     row.className = "admin-run";
+    const statusClass = run.status === "cancelled" ? "status-cancelled" : run.status === "postponed" ? "status-postponed" : "";
+    const statusLabel = run.status && run.status !== "scheduled" ? `<span class="ar-status-badge ${statusClass}">${run.status}</span>` : "";
     row.innerHTML = `
       <div class="ar-glyph">${MM.routeGlyph(run.route)}</div>
       <div class="ar-body">
         <b></b>
+        ${statusLabel}
         ${run.featured ? '<span class="level-badge">featured</span>' : ""}
         <small></small>
       </div>
       <div class="ar-actions">
+        <button class="ghost-btn" data-roster title="Export attendee roster spreadsheet (.csv)">📋 roster (.csv)</button>
         <button class="ghost-btn" data-edit>edit</button>
         <button class="ghost-btn danger" data-del>delete</button>
       </div>`;
     row.querySelector("b").textContent = run.title;
     row.querySelector("small").textContent =
       MM.whenText(run.startsAt) + " · " + (km ? km.toFixed(1) + " km" : "no route") + " · " + count + " in";
+    
+    row.querySelector("[data-roster]").addEventListener("click", () => {
+      const runners = MM.getRunners(run.id);
+      if (!runners.length) return toast("no runners signed up yet for this run");
+      MM.exportRosterCsv(run);
+      toast(`exported ${runners.length} runner${runners.length === 1 ? "" : "s"} to roster (.csv) ✓`);
+    });
+
     row.querySelector("[data-edit]").addEventListener("click", () => loadRun(run));
     row.querySelector("[data-del]").addEventListener("click", async () => {
       if (!confirm("delete “" + run.title + "”?")) return;
@@ -236,7 +263,88 @@ function renderRuns() {
       renderRuns();
       toast("deleted");
     });
-    wrap.appendChild(row);
+    frag.appendChild(row);
+  }
+  wrap.appendChild(frag);
+}
+
+// ---------- push notifications management ----------
+async function loadPushStats() {
+  try {
+    const res = await fetch("/api/admin/push/stats");
+    if (res.ok) {
+      const data = await res.json();
+      const countEl = $("#pushSubscribersCount");
+      if (countEl) countEl.textContent = data.count || 0;
+    }
+  } catch (e) {
+    /* ignore */
+  }
+  const sel = $("#pushRunSelect");
+  if (sel) {
+    const current = sel.value;
+    sel.innerHTML = '<option value="">all subscribers</option>';
+    MM.getRuns().forEach((r) => {
+      const opt = document.createElement("option");
+      opt.value = r.id;
+      opt.textContent = `${r.title} (${MM.whenText(r.startsAt)})`;
+      sel.appendChild(opt);
+    });
+    sel.value = current;
+  }
+}
+
+async function handlePushBroadcast(e) {
+  e.preventDefault();
+  const fd = new FormData(e.target);
+  const title = (fd.get("title") || "").toString().trim();
+  const body = (fd.get("body") || "").toString().trim();
+  const runId = (fd.get("runId") || "").toString().trim();
+  const url = (fd.get("url") || "./").toString().trim();
+
+  if (!title || !body) return toast("title and message are required");
+  if (!confirm("Broadcast this push notification to subscribed runners?")) return;
+
+  const btn = e.target.querySelector('button[type="submit"]');
+  if (btn) btn.disabled = true;
+  try {
+    const res = await fetch("/api/admin/push/broadcast", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, body, runId, url }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "broadcast failed");
+    toast(`📢 broadcast sent: ${data.sent} device(s)`);
+    await loadPushStats();
+  } catch (err) {
+    toast(err.message || "failed to send push reminder");
+  } finally {
+    if (btn) btn.disabled = false;
+  }
+}
+
+async function handleTestPush() {
+  const f = $("#pushForm");
+  const fd = new FormData(f);
+  const title = (fd.get("title") || "MileMark [Test]").toString().trim();
+  const body = (fd.get("body") || "Test notification").toString().trim();
+
+  const testBtn = $("#testPushBtn");
+  if (testBtn) testBtn.disabled = true;
+  try {
+    const res = await fetch("/api/admin/push/test", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ title, body }),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || "test failed");
+    toast("test notification dispatched ✓");
+  } catch (err) {
+    toast(err.message || "could not dispatch test notification");
+  } finally {
+    if (testBtn) testBtn.disabled = false;
   }
 }
 
@@ -253,7 +361,23 @@ async function init() {
     route = [];
     redrawRoute();
   });
+  $("#exportGpxBtn").addEventListener("click", () => {
+    if (route.length < 2) return toast("draw at least 2 points to export GPX");
+    const title = $("#runForm").title.value || "Admin Route";
+    MM.exportGpx({
+      title,
+      route,
+      blurb: $("#runForm").blurb.value || "MileMark route",
+    });
+    toast("downloading gpx route ↓");
+  });
   $("#resetFormBtn").addEventListener("click", resetForm);
+
+  const pushForm = $("#pushForm");
+  if (pushForm) pushForm.addEventListener("submit", handlePushBroadcast);
+  const testPushBtn = $("#testPushBtn");
+  if (testPushBtn) testPushBtn.addEventListener("click", handleTestPush);
+
   const logout = $("#logoutBtn");
   if (logout) {
     logout.addEventListener("click", async () => {
@@ -269,6 +393,7 @@ async function init() {
     toast("couldn't load runs from the server");
   }
   renderRuns();
+  await loadPushStats();
 }
 
 init();

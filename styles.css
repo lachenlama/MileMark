@@ -1540,3 +1540,302 @@ a.ghost-btn {
   font-weight: 800;
   color: var(--yellow);
 }
+
+/* ---- push notifications button ---- */
+.push-toggle-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.82rem;
+  padding: 0.45rem 0.95rem;
+}
+.push-toggle-btn.is-subscribed {
+  border-color: rgba(70, 227, 156, 0.4);
+  color: #46e39c;
+  background: rgba(70, 227, 156, 0.08);
+}
+.push-toggle-btn.is-subscribed:hover {
+  border-color: rgba(70, 227, 156, 0.6);
+  background: rgba(70, 227, 156, 0.12);
+}
+
+/* ---- hero action row & dropdown ---- */
+.hero-cta-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-top: 1.5rem;
+}
+
+.hero-sub-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.icon-btn {
+  font-size: 0.82rem;
+  padding: 0.45rem 0.9rem;
+  color: var(--muted);
+  border-color: var(--line);
+}
+.icon-btn:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.35);
+}
+
+/* ---- dropdown popover ---- */
+.dropdown {
+  position: relative;
+  display: inline-block;
+}
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(20, 20, 20, 0.95);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.35rem;
+  display: flex;
+  flex-direction: column;
+  min-width: 190px;
+  z-index: 50;
+  box-shadow: 0 16px 36px rgba(0, 0, 0, 0.6);
+  animation: dropFadeIn 0.15s ease-out;
+}
+.dropdown-menu[hidden] {
+  display: none;
+}
+@keyframes dropFadeIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -4px);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+.dropdown-item {
+  background: transparent;
+  border: none;
+  color: var(--text);
+  font: inherit;
+  font-size: 0.85rem;
+  font-weight: 700;
+  padding: 0.6rem 0.85rem;
+  text-align: left;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.12s ease, color 0.12s ease;
+  white-space: nowrap;
+}
+.dropdown-item:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--yellow);
+}
+
+/* ---- run card action row & mini buttons ---- */
+.rc-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  margin-top: 0.5rem;
+}
+.rc-card-actions .join-btn {
+  flex: 1;
+}
+.rc-quick-exports {
+  display: flex;
+  gap: 0.35rem;
+}
+.rc-mini-btn {
+  background: transparent;
+  color: var(--muted);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  padding: 0.35rem 0.65rem;
+  font: inherit;
+  font-size: 0.75rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.rc-mini-btn:hover {
+  color: var(--text);
+  border-color: rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+/* ---- admin push reminders section ---- */
+.admin-push {
+  margin: 2.5rem 0;
+  padding: 1.5rem;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+.admin-push h2 {
+  margin-top: 0;
+}
+.push-count-badge {
+  display: inline-block;
+  background: rgba(255, 212, 59, 0.12);
+  color: var(--yellow);
+  border: 1px solid rgba(255, 212, 59, 0.3);
+  border-radius: 999px;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.8rem;
+  font-weight: 800;
+  margin-left: 0.5rem;
+}
+
+/* ---- run cancellation & postponement status banners ---- */
+.run-status-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.85rem 1.15rem;
+  border-radius: var(--radius);
+  margin-bottom: 1.2rem;
+  font-size: 0.95rem;
+  font-weight: 700;
+  line-height: 1.4;
+  animation: bannerFade 0.3s ease;
+}
+@keyframes bannerFade {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.run-status-banner.status-cancelled {
+  background: rgba(255, 35, 61, 0.14);
+  border: 1.5px solid var(--red);
+  color: #ff8593;
+}
+.run-status-banner.status-cancelled .status-pill {
+  background: var(--red);
+  color: #fff;
+}
+
+.run-status-banner.status-postponed {
+  background: rgba(255, 212, 59, 0.14);
+  border: 1.5px solid var(--yellow);
+  color: #ffe685;
+}
+.run-status-banner.status-postponed .status-pill {
+  background: var(--yellow);
+  color: #080808;
+}
+
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.75rem;
+  font-weight: 900;
+  letter-spacing: 0.05em;
+  padding: 0.25rem 0.65rem;
+  border-radius: 999px;
+  text-transform: uppercase;
+}
+.status-note {
+  font-weight: 600;
+}
+
+/* countdown cancelled styling */
+.countdown.is-cancelled {
+  opacity: 0.45;
+  filter: grayscale(0.8);
+  pointer-events: none;
+}
+.countdown.is-cancelled .cd-unit span {
+  text-decoration: line-through;
+  text-decoration-color: var(--red);
+}
+
+/* card status tags */
+.rc-status-tag {
+  display: inline-block;
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  margin-left: 0.5rem;
+  vertical-align: middle;
+}
+.rc-status-tag.status-cancelled {
+  background: rgba(255, 35, 61, 0.2);
+  color: #ff5c72;
+  border: 1px solid rgba(255, 35, 61, 0.4);
+}
+.rc-status-tag.status-postponed {
+  background: rgba(255, 212, 59, 0.2);
+  color: #ffd43b;
+  border: 1px solid rgba(255, 212, 59, 0.4);
+}
+
+/* admin list status badge */
+.ar-status-badge {
+  display: inline-block;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 0.15rem 0.5rem;
+  border-radius: 999px;
+  margin-left: 0.4rem;
+}
+.ar-status-badge.status-cancelled {
+  background: rgba(255, 35, 61, 0.2);
+  color: #ff5c72;
+  border: 1px solid rgba(255, 35, 61, 0.5);
+}
+.ar-status-badge.status-postponed {
+  background: rgba(255, 212, 59, 0.2);
+  color: #ffd43b;
+  border: 1px solid rgba(255, 212, 59, 0.5);
+}
+
+/* ---- hero zero-run empty state ---- */
+.hero-empty-state {
+  text-align: center;
+  padding: 3.5rem 1.5rem;
+  background: var(--panel);
+  border: 1px dashed var(--line);
+  border-radius: var(--radius);
+  margin-bottom: 2.5rem;
+  animation: bannerFade 0.35s ease;
+}
+.hero-empty-state .empty-route-icon {
+  font-size: 3rem;
+  margin-bottom: 0.8rem;
+}
+.hero-empty-state h2 {
+  font-family: var(--font-display);
+  font-size: clamp(2.2rem, 8vw, 3.4rem);
+  letter-spacing: 0.01em;
+  margin: 0 0 0.8rem;
+  text-transform: lowercase;
+  color: var(--text);
+}
+.hero-empty-state .hero-sub {
+  margin: 0 auto 1.8rem;
+  max-width: 44ch;
+  color: var(--muted);
+  font-size: 1.05rem;
+}
+.hero-empty-state .cta {
+  max-width: 340px;
+  margin: 0 auto;
+}
+
+

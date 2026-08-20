@@ -1,5 +1,5 @@
-// MileMark service worker — offline shell cache.
-const CACHE = "milemark-v11";
+// MileMark service worker — offline shell cache & push notifications.
+const CACHE = "milemark-v23";
 // Only the public shell is precached. Admin pages are gated server-side, and the
 // API is never cached (see fetch handler) so the shared wall always stays fresh.
 const ASSETS = [
@@ -14,11 +14,11 @@ const ASSETS = [
   "./icons/icon-192.png",
   "./icons/icon-512.png",
   "./icons/apple-touch-icon.png",
-  "./images/ice-bath.jpg",
-  "./images/calisthenics.jpg",
   "./images/coffee.jpg",
-  "./images/playstations.jpg",
-  "./images/coffee-rave.jpg",
+  "./images/ice-bath.jpg",
+  "./images/breakfast.jpg",
+  "./images/dj-set.jpg",
+  "./images/group-run.jpg",
 ];
 
 self.addEventListener("install", (e) => {
@@ -76,5 +76,45 @@ self.addEventListener("fetch", (e) => {
           return res;
         })
     )
+  );
+});
+
+// ---- web push notifications ----
+self.addEventListener("push", (e) => {
+  let data = {};
+  try {
+    data = e.data ? e.data.json() : {};
+  } catch {
+    data = { title: "MileMark", body: e.data ? e.data.text() : "We run soon." };
+  }
+
+  const title = data.title || "MileMark";
+  const options = {
+    body: data.body || "We run together. See you on the road.",
+    icon: "./icons/icon-192.png",
+    badge: "./icons/icon-192.png",
+    tag: data.tag || "milemark-notification",
+    renotify: true,
+    data: {
+      url: data.url || "./",
+    },
+  };
+
+  e.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", (e) => {
+  e.notification.close();
+  const targetUrl = (e.notification.data && e.notification.data.url) || "./";
+
+  e.waitUntil(
+    clients.matchAll({ type: "window", includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url.includes("index.html") || client.url.endsWith("/")) {
+          if ("focus" in client) return client.focus();
+        }
+      }
+      if (clients.openWindow) return clients.openWindow(targetUrl);
+    })
   );
 });

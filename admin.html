@@ -42,8 +42,9 @@
 
         <div class="admin-route-actions">
           <span class="route-dist">route: <b id="routeKm">0.0 km</b> · <b id="routePts">0</b> pts</span>
-          <button id="undoBtn" class="ghost-btn">undo</button>
-          <button id="clearBtn" class="ghost-btn">clear</button>
+          <button id="undoBtn" type="button" class="ghost-btn">undo</button>
+          <button id="clearBtn" type="button" class="ghost-btn">clear</button>
+          <button id="exportGpxBtn" type="button" class="ghost-btn">export gpx ↓</button>
         </div>
 
         <form id="runForm" class="admin-form">
@@ -55,12 +56,59 @@
             <label>distance (optional)<input name="distance" type="text" placeholder="auto from route" /></label>
           </div>
           <label>where<input name="where" type="text" placeholder="outside the cafe, Salbari" /></label>
-          <label class="checkbox">
-            <input name="featured" type="checkbox" /> make this the featured run
-          </label>
+          <div class="form-row">
+            <label>status
+              <select name="status" id="runStatusSelect">
+                <option value="scheduled">scheduled (active)</option>
+                <option value="postponed">postponed</option>
+                <option value="cancelled">cancelled</option>
+              </select>
+            </label>
+            <label>status note / update reason (e.g. heavy rain / postponed to next week)
+              <input name="statusNote" type="text" placeholder="optional note shown on run wall" />
+            </label>
+          </div>
+          <div class="form-row">
+            <label class="checkbox">
+              <input name="featured" type="checkbox" /> make this the featured run
+            </label>
+            <label class="checkbox">
+              <input name="notifyPush" type="checkbox" /> alert runners via push on status change
+            </label>
+          </div>
           <div class="form-row">
             <button type="submit" class="cta">save run</button>
             <button type="button" id="resetFormBtn" class="ghost-btn">new / reset</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="admin-push">
+        <h2>push reminders</h2>
+        <p class="admin-hint">
+          send a reminder directly to all runners who tapped "remind me".
+          <span class="push-count-badge"><b id="pushSubscribersCount">0</b> devices subscribed</span>
+        </p>
+        <form id="pushForm" class="admin-form">
+          <label>notification title
+            <input name="title" type="text" value="MileMark: we run tomorrow" required />
+          </label>
+          <label>message
+            <textarea name="body" rows="2" required placeholder="6:00 AM outside the cafe. Salbari. Bring legs and talk the whole way.">6:00 AM outside the cafe. Bring legs, talk the whole way, coffee after.</textarea>
+          </label>
+          <div class="form-row">
+            <label>target run
+              <select name="runId" id="pushRunSelect">
+                <option value="">all subscribers</option>
+              </select>
+            </label>
+            <label>link destination
+              <input name="url" type="text" value="./" />
+            </label>
+          </div>
+          <div class="form-row">
+            <button type="submit" class="cta">broadcast reminder 📢</button>
+            <button type="button" id="testPushBtn" class="ghost-btn">send test push</button>
           </div>
         </form>
       </section>

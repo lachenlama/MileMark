@@ -66,6 +66,7 @@ function renderMarks(p) {
   }
   sec.hidden = false;
   grid.innerHTML = "";
+  const frag = document.createDocumentFragment();
   const locked = all.filter((b) => !b.earned).slice(0, 3); // a few to chase
   for (const b of [...earned, ...locked]) {
     const el = document.createElement(b.earned ? "button" : "div");
@@ -79,14 +80,32 @@ function renderMarks(p) {
     el.querySelector(".mark-note").textContent = b.earned ? b.note : b.hint;
     el.querySelector(".mark-share").textContent = b.earned ? "↗ share" : "not yet";
     if (b.earned) el.addEventListener("click", () => MMShare.openBadge(b, p));
-    grid.appendChild(el);
+    frag.appendChild(el);
   }
+  grid.appendChild(frag);
 }
 
 // ---------- featured run ----------
 function renderFeatured() {
+  const emptyBox = $("#featuredEmpty");
+  const contentBox = $("#featuredContent");
+  const wallSec = $("#wallSection");
   const run = MM.featuredRun();
-  if (!run) return;
+
+  if (!run) {
+    activeRunId = null;
+    if (emptyBox) emptyBox.hidden = false;
+    if (contentBox) contentBox.hidden = true;
+    if (wallSec) wallSec.hidden = true;
+    const mapWrap = $("#mapWrap");
+    if (mapWrap) mapWrap.hidden = true;
+    return;
+  }
+
+  if (emptyBox) emptyBox.hidden = true;
+  if (contentBox) contentBox.hidden = false;
+  if (wallSec) wallSec.hidden = false;
+
   activeRunId = run.id;
   $("#runTitle").textContent = run.title;
   $("#runBlurb").textContent = run.blurb;
@@ -103,11 +122,41 @@ function renderFeatured() {
   const started = MM.runStarted(run);
   const logged = !!MM.myResult(run.id);
 
-  // before the run: join + (if in) share you're in. after the run: log it / share result.
-  $("#joinFeatured").hidden = started;
-  $("#shareFeatured").hidden = !joined || started;
+  // status handling (scheduled / cancelled / postponed)
+  const banner = $("#featuredStatusBanner");
+  const pill = $("#featuredStatusPill");
+  const note = $("#featuredStatusNote");
+  const isCancelled = run.status === "cancelled";
+  const isPostponed = run.status === "postponed";
+
+  if (banner && pill && note) {
+    if (isCancelled || isPostponed) {
+      banner.hidden = false;
+      banner.className = `run-status-banner status-${run.status}`;
+      pill.textContent = isCancelled ? "⚠️ CANCELLED" : "⏳ POSTPONED";
+      note.textContent = run.statusNote ? `· ${run.statusNote}` : "";
+    } else {
+      banner.hidden = true;
+    }
+  }
+
+  const joinBtn = $("#joinFeatured");
+  const countdownEl = $("#countdown");
+  if (isCancelled) {
+    joinBtn.hidden = false;
+    joinBtn.disabled = true;
+    joinBtn.textContent = "run cancelled ✕";
+    if (countdownEl) countdownEl.classList.add("is-cancelled");
+  } else {
+    joinBtn.disabled = false;
+    joinBtn.textContent = "i'm in →";
+    joinBtn.hidden = started;
+    if (countdownEl) countdownEl.classList.remove("is-cancelled");
+  }
+
+  $("#shareFeatured").hidden = !joined || started || isCancelled;
   const logBtn = $("#logFeatured");
-  logBtn.hidden = !(joined && started);
+  logBtn.hidden = !(joined && started) || isCancelled;
   logBtn.textContent = logged ? "update / share your run →" : "log your run →";
 }
 
@@ -160,11 +209,17 @@ function renderMap(run) {
 
 // ---------- the wall ----------
 function renderWall(runId) {
-  const list = MM.getRunners(runId);
+  const list = runId ? MM.getRunners(runId) : [];
   const ul = $("#runnerList");
   ul.innerHTML = "";
   $("#countNum").textContent = list.length;
   $("#emptyState").hidden = list.length > 0;
+  if (!runId) {
+    $("#emptyState").textContent = "no runs scheduled yet. next route drops soon.";
+  } else {
+    $("#emptyState").textContent = "nobody yet. be the first name on the wall.";
+  }
+  const frag = document.createDocumentFragment();
   for (const r of list) {
     const isYou = !!r.you; // server marks which wall entry is the current member
     const res = r.result;
@@ -200,7 +255,8 @@ function renderWall(runId) {
     } else if (res) {
       const tag = document.createElement("span");
       tag.className = "ran-tag";
-      if (res.stravaUrl) {
+      const validStrava = res.stravaUrl && /^https:\/\/(www\.)?(strava\.com|strava\.app\.link)\/[a-zA-Z0-9_\-\.\/?&=%#]+$/i.test(res.stravaUrl);
+      if (validStrava) {
         const a = document.createElement("a");
         a.href = res.stravaUrl;
         a.target = "_blank";
@@ -214,8 +270,9 @@ function renderWall(runId) {
     } else {
       tagSlot.textContent = r.pace;
     }
-    ul.appendChild(li);
+    frag.appendChild(li);
   }
+  ul.appendChild(frag);
   updateWallFade();
 }
 
@@ -242,13 +299,17 @@ function resultLine(res) {
 
 // ---------- more-run cards ----------
 function renderCards() {
+  const sec = $("#moreSection");
   const wrap = $("#runCards");
+  if (!wrap) return;
   wrap.innerHTML = "";
   const others = MM.otherRuns();
   if (!others.length) {
-    wrap.innerHTML = '<p class="empty">just the one run for now.</p>';
+    if (sec) sec.hidden = true;
     return;
   }
+  if (sec) sec.hidden = false;
+  const frag = document.createDocumentFragment();
   for (const run of others) {
     const km = MM.routeKm(run.route);
     const count = MM.getRunners(run.id).length;
@@ -263,7 +324,13 @@ function renderCards() {
           <span class="rc-when"></span>
           <span class="rc-dist"></span>
         </div>
-        <button class="cta cta-sm">i'm in →</button>
+        <div class="rc-card-actions">
+          <button class="cta cta-sm join-btn">i'm in →</button>
+          <div class="rc-quick-exports">
+            <button type="button" class="rc-mini-btn cal-btn" title="Add to Calendar">📅 cal</button>
+            <button type="button" class="rc-mini-btn gpx-btn" title="Export GPX Route">📍 gpx</button>
+          </div>
+        </div>
         <p class="rc-count"><span></span> in</p>
       </div>`;
     card.querySelector("h3").textContent = run.title;
@@ -273,10 +340,22 @@ function renderCards() {
       run.distance || (km ? "~" + km.toFixed(1) + " km" : "tba");
     card.querySelector(".rc-count span").textContent = count;
 
-    const btn = card.querySelector("button");
+    const isCancelled = run.status === "cancelled";
+    const isPostponed = run.status === "postponed";
+    if (isCancelled || isPostponed) {
+      const statusPill = document.createElement("span");
+      statusPill.className = `rc-status-tag status-${run.status}`;
+      statusPill.textContent = isCancelled ? "⚠️ cancelled" : "⏳ postponed";
+      card.querySelector("h3").appendChild(statusPill);
+    }
+
+    const btn = card.querySelector(".join-btn");
     const p = MM.me();
     const joined = p && (p.runs || []).includes(run.id);
-    if (MM.runStarted(run)) {
+    if (isCancelled) {
+      btn.textContent = "cancelled ✕";
+      btn.disabled = true;
+    } else if (MM.runStarted(run)) {
       if (joined) {
         btn.textContent = MM.myResult(run.id) ? "update your run →" : "log your run →";
         btn.addEventListener("click", () => openLogSheet(run));
@@ -287,8 +366,24 @@ function renderCards() {
     } else {
       btn.addEventListener("click", () => openSheet(run));
     }
-    wrap.appendChild(card);
+
+    const calBtn = card.querySelector(".cal-btn");
+    calBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      MM.exportIcs(run);
+      toast(`added “${run.title}” to calendar download (.ics)`);
+    });
+
+    const gpxBtn = card.querySelector(".gpx-btn");
+    gpxBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      MM.exportGpx(run);
+      toast(`downloading gpx for “${run.title}”`);
+    });
+
+    frag.appendChild(card);
   }
+  wrap.appendChild(frag);
 }
 
 // ---------- register sheet ----------
@@ -348,11 +443,15 @@ function closeLogSheet() {
 async function handleLogSubmit(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
+  const strava = (fd.get("stravaUrl") || "").toString().trim();
+  if (strava && !/^https:\/\/(www\.)?(strava\.com|strava\.app\.link)\/[a-zA-Z0-9_\-\.\/?&=%#]+$/i.test(strava)) {
+    return toast("enter a valid strava link (https://strava.com/...)");
+  }
   const payload = {
     durationSec: parseTime(fd.get("time")),
     distanceKm: parseFloat(fd.get("distance")) || 0,
     note: (fd.get("note") || "").toString().trim(),
-    stravaUrl: (fd.get("stravaUrl") || "").toString().trim(),
+    stravaUrl: strava,
   };
   const btn = e.target.querySelector('button[type="submit"]');
   if (btn) btn.disabled = true;
@@ -490,6 +589,131 @@ function setupInstall() {
   });
 }
 
+// ---------- calendar & gpx exports ----------
+function setupFeaturedExports() {
+  const calBtn = $("#calBtn");
+  const calMenu = $("#calMenu");
+  const calIcs = $("#calIcs");
+  const calGoogle = $("#calGoogle");
+  const gpxBtn = $("#gpxFeatured");
+
+  if (calBtn && calMenu) {
+    calBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const open = !calMenu.hidden;
+      calMenu.hidden = open;
+      calBtn.setAttribute("aria-expanded", !open);
+    });
+
+    document.addEventListener("click", (e) => {
+      if (!calMenu.hidden && !calMenu.contains(e.target) && e.target !== calBtn) {
+        calMenu.hidden = true;
+        calBtn.setAttribute("aria-expanded", "false");
+      }
+    });
+
+    if (calIcs) {
+      calIcs.addEventListener("click", () => {
+        calMenu.hidden = true;
+        calBtn.setAttribute("aria-expanded", "false");
+        const run = MM.featuredRun();
+        if (run) {
+          MM.exportIcs(run);
+          toast("downloading .ics calendar file ↓");
+        }
+      });
+    }
+
+    if (calGoogle) {
+      calGoogle.addEventListener("click", () => {
+        calMenu.hidden = true;
+        calBtn.setAttribute("aria-expanded", "false");
+        const run = MM.featuredRun();
+        if (run) {
+          window.open(MM.googleCalendarUrl(run), "_blank", "noopener,noreferrer");
+        }
+      });
+    }
+  }
+
+  if (gpxBtn) {
+    gpxBtn.addEventListener("click", () => {
+      const run = MM.featuredRun();
+      if (run) {
+        MM.exportGpx(run);
+        toast("downloading gpx route ↓");
+      }
+    });
+  }
+}
+
+// ---------- push reminders ----------
+async function updatePushStatus() {
+  const btn = $("#pushToggleBtn");
+  const emptyBtn = $("#emptyNotifyBtn");
+  if (!MM.isPushSupported() && !isIOS()) {
+    if (btn) btn.hidden = true;
+    if (emptyBtn) emptyBtn.hidden = true;
+    return;
+  }
+  const sub = await MM.getPushSubscription();
+  if (sub) {
+    if (btn) {
+      btn.textContent = "✓ reminders on";
+      btn.classList.add("is-subscribed");
+    }
+    if (emptyBtn) {
+      emptyBtn.textContent = "✓ reminders on (we'll notify you)";
+      emptyBtn.classList.add("is-subscribed");
+    }
+  } else {
+    if (btn) {
+      btn.textContent = "🔔 remind me";
+      btn.classList.remove("is-subscribed");
+    }
+    if (emptyBtn) {
+      emptyBtn.textContent = "🔔 notify me when route drops";
+      emptyBtn.classList.remove("is-subscribed");
+    }
+  }
+}
+
+function setupPushReminders() {
+  const triggerPush = async (buttonEl) => {
+    if (isIOS() && !isStandalone()) {
+      toast("on iPhone: tap Share → Add to Home Screen first to get reminders");
+      return;
+    }
+    if (!MM.isPushSupported()) {
+      toast("push notifications are not supported on this browser");
+      return;
+    }
+    if (buttonEl) buttonEl.disabled = true;
+    try {
+      const existing = await MM.getPushSubscription();
+      if (existing) {
+        await MM.unsubscribePush();
+        toast("reminders turned off");
+      } else {
+        await MM.subscribePush(activeRunId);
+        toast("reminders on ✓ we'll ping you as soon as the route drops");
+      }
+      await updatePushStatus();
+    } catch (err) {
+      console.error("Push subscribe error:", err);
+      toast(err.message || "could not update push reminders");
+    } finally {
+      if (buttonEl) buttonEl.disabled = false;
+    }
+  };
+
+  const btn = $("#pushToggleBtn");
+  if (btn) btn.addEventListener("click", () => triggerPush(btn));
+
+  const emptyBtn = $("#emptyNotifyBtn");
+  if (emptyBtn) emptyBtn.addEventListener("click", () => triggerPush(emptyBtn));
+}
+
 // ---------- service worker ----------
 if ("serviceWorker" in navigator) {
   window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
@@ -505,6 +729,8 @@ function renderAll() {
 async function init() {
   // listeners + install prompt don't need server data — wire them first
   setupInstall();
+  setupFeaturedExports();
+  setupPushReminders();
   $("#joinFeatured").addEventListener("click", () => openSheet(MM.featuredRun()));
   $("#shareFeatured").addEventListener("click", () => {
     const run = MM.featuredRun();
@@ -520,6 +746,8 @@ async function init() {
     if (e.key !== "Escape") return;
     if (!$("#sheet").hidden) closeSheet();
     if (!$("#logSheet").hidden) closeLogSheet();
+    const calMenu = $("#calMenu");
+    if (calMenu && !calMenu.hidden) calMenu.hidden = true;
   });
 
   // pull shared state from the server, then paint
@@ -530,8 +758,21 @@ async function init() {
     toast("couldn't reach the server — pull to retry");
   }
   renderAll();
+  await updatePushStatus();
   tickCountdown();
   setInterval(tickCountdown, 1000);
+
+  // refresh state when user refocuses the app/tab
+  let lastRefresh = Date.now();
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState === "visible" && Date.now() - lastRefresh > 15000) {
+      lastRefresh = Date.now();
+      try {
+        await MM.refresh();
+        renderAll();
+      } catch {}
+    }
+  });
 }
 
 init();

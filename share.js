@@ -17,8 +17,8 @@ const MMShare = (() => {
       ? Promise.all([
           document.fonts.load('400 130px "Anton"'),
           document.fonts.load('700 64px "Caveat"'),
-          document.fonts.load('800 32px "Manrope"'),
-          document.fonts.load('900 32px "Manrope"'),
+          document.fonts.load('800 32px "Hanken Grotesk"'),
+          document.fonts.load('900 32px "Hanken Grotesk"'),
         ]).catch(() => {})
       : Promise.resolve());
     return fontsReady;
@@ -147,7 +147,7 @@ const MMShare = (() => {
     ctx.restore();
     ctx.fillStyle = MUTED;
     ctx.font = '700 50px "Caveat", cursive';
-    ctx.fillText("a not another run", W / 2, 256);
+    ctx.fillText("a not another experience run", W / 2, 256);
 
     // top hairline
     ctx.strokeStyle = "rgba(255,255,255,0.16)";
@@ -190,7 +190,7 @@ const MMShare = (() => {
 
       // eyebrow
       ctx.fillStyle = MUTED;
-      ctx.font = '900 34px "Manrope", sans-serif';
+      ctx.font = '900 34px "Hanken Grotesk", sans-serif';
       ctx.fillText("·  A  NEW  MARK  ·", W / 2, 900);
 
       // name
@@ -225,7 +225,7 @@ const MMShare = (() => {
     }
     if (opts.sub) {
       ctx.fillStyle = MUTED;
-      ctx.font = '800 38px "Manrope", sans-serif';
+      ctx.font = '800 38px "Hanken Grotesk", sans-serif';
       ctx.fillText(opts.sub, W / 2, 1796);
     }
 

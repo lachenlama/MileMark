@@ -12,34 +12,34 @@
   //          from/to are 24h hours.
   const EVENTS = [
     {
-      id: "ice-bath", kicker: "recovery", name: "the ice bath", img: "images/ice-bath.jpg",
-      blurb: "two minutes you'll dread and then brag about. get in, breathe, come back human.",
-      meta: "mornings · by the cafe", cat: "morning", accent: "hap-cold",
-      windows: [{ days: [0, 6], from: 6, to: 11 }],
-    },
-    {
-      id: "calisthenics", kicker: "throwdown", name: "calisthenics comp", img: "images/calisthenics.jpg",
-      blurb: "no machines, just your own weight and a crowd counting reps. whoever's left standing.",
-      meta: "weekends · all levels", cat: "morning", accent: "hap-cali",
-      windows: [{ days: [0, 6], from: 8, to: 12 }],
-    },
-    {
-      id: "samas-coffee", kicker: "fuel", name: "sama's coffee", img: "images/coffee.jpg",
-      blurb: "the cup that's worth the climb back. sama pulls them slow — sit down, don't rush it.",
+      id: "coffee-maailis", kicker: "fuel", name: "coffee by maailis pasal", img: "images/coffee.jpg",
+      blurb: "the cup that's worth the climb back. freshly brewed and pulled slow — sit down, don't rush it.",
       meta: "all day · on the house once", cat: "daily", accent: "hap-coffee",
       windows: [{ days: "all", from: 8, to: 21 }],
     },
     {
-      id: "playstations", kicker: "downtime", name: "playstations & games", img: "images/playstations.jpg",
-      blurb: "legs are done, so sink into a controller. couch, a cup, talking trash over a screen.",
-      meta: "all day · winner keeps the seat", cat: "daily", accent: "hap-play",
-      windows: [{ days: "all", from: 11, to: 22 }],
+      id: "ice-bath", kicker: "recovery", name: "the ice bath", img: "images/ice-bath.jpg",
+      blurb: "two minutes you'll dread and then brag about. get in, breathe, come back human.",
+      meta: "mornings · post-run dip", cat: "morning", accent: "hap-cold",
+      windows: [{ days: [0, 6], from: 6, to: 11 }],
     },
     {
-      id: "coffee-rave", kicker: "after dark", name: "coffee rave · djs", img: "images/coffee-rave.jpg",
-      blurb: "when the cups go quiet, the speakers don't. local djs, low light, no list at the door.",
-      meta: "nights · djs rotating", cat: "night", accent: "hap-rave", wide: true,
-      windows: [{ days: [5, 6], from: 19, to: 24 }],
+      id: "breakfast-milemark", kicker: "morning feast", name: "breakfast by milemark", img: "images/breakfast.jpg",
+      blurb: "hot breakfast waiting at the table when the miles are done. eggs, fresh bakes, and runners sharing stories.",
+      meta: "mornings · community table", cat: "morning", accent: "hap-breakfast",
+      windows: [{ days: [0, 6], from: 7, to: 12 }],
+    },
+    {
+      id: "dj-arox", kicker: "sound", name: "dj set by arox", img: "images/dj-set.jpg",
+      blurb: "curated morning beats and after-run selections by AROX. good music and good volume.",
+      meta: "sessions · live selections", cat: "night", accent: "hap-rave",
+      windows: [{ days: [5, 6], from: 18, to: 23 }],
+    },
+    {
+      id: "group-ice-bath", kicker: "community", name: "group & ice bath", img: "images/group-run.jpg",
+      blurb: "lace up, shake the legs out, run together. no pace shaming, whoever shows up is family.",
+      meta: "weekends · all levels", cat: "morning", accent: "hap-cali",
+      windows: [{ days: [0, 6], from: 6, to: 10 }],
     },
   ];
 

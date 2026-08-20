@@ -1,6 +1,6 @@
 # MileMark
 
-A Strava-but-quieter run app for **Not Another Cafe**. People sign up for a run on a
+A Strava-but-quieter run app managed and provided by **Not Another Experience**. People sign up for a run on a
 set date, and their name lands on the wall. No medals, no leaderboard flexing —
 just the road and whoever shows up.
 
@@ -42,8 +42,12 @@ local `data/db.json` (git-ignored) — fine for dev.
 | POST | `/api/join` | public | Sign up for a run; awards points, computes badges, sets your member cookie |
 | POST | `/api/log` | member | Honor-system: log time/distance/note/Strava for a run you did (only after it's started) |
 | GET | `/api/leaderboard` | public | "the regulars" — profiles by points (no UI yet; brand stays anti-flex) |
+| GET | `/api/push/vapid-key` | public | Get VAPID public key for browser push registration |
+| POST | `/api/push/subscribe` · `/unsubscribe` | public | Subscribe / unsubscribe browser device for push notifications |
 | POST | `/api/admin/login` · `/logout` · GET `/me` | — | Password-gated admin session |
 | POST | `/api/runs` · DELETE `/api/runs/:id` | admin | Create/update/delete runs |
+| GET | `/api/admin/push/stats` | admin | Get total active push subscriber count |
+| POST | `/api/admin/push/broadcast` · `/test` | admin | Broadcast or test push notifications |
 
 **Identity** is *claim-by-contact*: the insta @ / phone you type at signup is
 normalized into your key and remembered with a signed cookie — no login screen.
@@ -55,22 +59,22 @@ redirect to `/admin-login.html`.
 - **Android / Chrome:** an `install` button appears in the top bar, or use
   the browser menu → "Install app".
 - **iPhone / Safari:** tap **Share → Add to Home Screen**. It opens fullscreen
-  like a native app.
+  like a native app and enables Web Push notifications.
 
 ## Files
 
 | File | What it is |
 | --- | --- |
-| `index.html` | The app — profile/level card, featured run + map, run cards, register, wall, "your marks" |
-| `admin.html` / `admin.js` | **Route builder** (password-gated). Tap the map to draw a run's route, set details, save |
+| `index.html` | The app — profile card, featured run (+ cal / GPX / push reminder), wall, "your marks", run cards |
+| `admin.html` / `admin.js` | **Route builder & Push manager** (password-gated). Draw routes, broadcast push reminders |
 | `admin-login.html` | Admin password screen (redirected here when not logged in) |
-| `data.js` | Client data layer — async API client over `/api`, cached state, badge catalog, route helpers |
-| `app.js` | Main page logic |
+| `data.js` | Client data layer — API client, cached state, badge catalog, calendar / GPX helpers, Web Push client |
+| `app.js` | Main page logic — countdown, registration, exports, push subscription toggle |
 | `share.js` | Story-card generator (`MMShare`) for shareable "marks" + "i'm in" cards |
-| `styles.css` | Look & feel — dark / red / yellow palette, excalidraw-vibe marks |
+| `styles.css` | Look & feel — dark / red / yellow palette, excalidraw-vibe marks, dropdowns, push pills |
 | `manifest.webmanifest` | PWA install metadata |
-| `sw.js` | Service worker (caches the public shell; bypasses `/api/` + admin pages) |
-| `server.js` | Static server **+ `/api/*` backend** (Upstash-or-local), exports `handleRequest` |
+| `sw.js` | Service worker (caches public shell + receives web push notifications) |
+| `server.js` | Static server **+ `/api/*` backend** (Upstash-or-local, VAPID push engine), exports `handleRequest` |
 | `api/index.js` | Vercel serverless entrypoint → `handleRequest` |
 | `vercel.json` | Vercel config — rewrites `/api/*` to the function, sets PWA headers |
 | `generate-icons.js` | Regenerates the app icons (`node generate-icons.js`) |
@@ -82,8 +86,10 @@ Go to **`/admin.html`** (or tap "admin" in the top bar):
 
 1. **Tap the map** to drop route points — the red line + distance update live.
 2. **Drag** a point to move it; **right-click / long-press** a point to delete it.
-3. Fill in title, date/time, where; tick "featured" to make it this week's run.
-4. **Save**. It shows up on the home page immediately.
+3. Export the GPX route directly from the builder if desired.
+4. Fill in title, date/time, where; tick "featured" to make it this week's run.
+5. **Save**. It shows up on the home page immediately.
+6. Use the **Push Reminders** section to send immediate reminders to all registered devices.
 
 ## Maps: why Leaflet, not Google (yet)
 
@@ -131,6 +137,8 @@ earned what; the client only holds the copy + the card):
 | Badge **presentation** (`ACHIEVEMENTS`: name/note/glyph/tone/hint) | `data.js` |
 | Story-card generator (excalidraw vibe) + share/download + modal | `share.js` (`MMShare`) |
 | "noted" line, "your marks" grid, "this is you" wall highlight | `app.js` |
+| Calendar export & GPX track generator | `data.js` (`MM.exportIcs`, `MM.exportGpx`) |
+| Web Push reminder engine (VAPID + sub manager + SW) | `server.js`, `data.js`, `sw.js`, `admin.js` |
 
 To add/edit a badge: add its **check** to `ACHIEVEMENT_CHECKS` + `ACHIEVEMENT_ORDER`
 in `server.js` (the `ctx` is `{ count, points, titles, hours, bestPos }`, where
@@ -152,9 +160,10 @@ The share card's look lives in `renderCard()` in `share.js`.
 - [x] **Post-run log** — honor-system: after a run, signed-up runners log time /
       distance / a one-line confession / Strava link (`POST /api/log`). No GPS.
       The wall turns into a confessional feed; logging earns the "finish" marks.
+- [x] **Calendar & GPX route export** — `.ics` file download, Google Calendar 1-click URL, and standard GPX track download for GPS watches/navigation.
+- [x] **Push reminders** — Web Push notifications with zero-config VAPID generation, subscriber management, and admin broadcast tool.
 - [ ] **Swap to Google Maps** once an API key exists (see above).
 - [ ] **Post-run photos** — attach an image to a log (next step on the confessional feed).
-- [ ] **Push reminders** — "we run in 12 hours."
 - [ ] **Concurrency** — the whole-DB read-modify-write can race if two people sign
       up in the same instant (fine at cafe-run-club volume; revisit if it grows).
 ```

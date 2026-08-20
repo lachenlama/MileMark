@@ -73,7 +73,27 @@ const MM = (() => {
   }
   function featuredRun() {
     const runs = getRuns();
-    return runs.find((r) => r.featured) || runs[0] || null;
+    if (!runs.length) return null;
+    const now = new Date();
+
+    // 1. Explicit featured run that is in the future and not cancelled
+    const futureFeatured = runs.find(
+      (r) => r.featured && new Date(r.startsAt) > now && r.status !== "cancelled"
+    );
+    if (futureFeatured) return futureFeatured;
+
+    // 2. Nearest upcoming future run (sorted by startsAt ascending)
+    const upcomingRuns = runs
+      .filter((r) => new Date(r.startsAt) > now && r.status !== "cancelled")
+      .sort((a, b) => new Date(a.startsAt) - new Date(b.startsAt));
+    if (upcomingRuns.length > 0) return upcomingRuns[0];
+
+    // 3. Any explicit featured run (e.g. today / postponed / recently completed)
+    const anyFeatured = runs.find((r) => r.featured);
+    if (anyFeatured) return anyFeatured;
+
+    // 4. Fallback: most recent run or null
+    return runs[0] || null;
   }
   function otherRuns() {
     const f = featuredRun();
@@ -160,6 +180,12 @@ const MM = (() => {
   // ---- admin ----
   async function upsertRun(run) {
     return (await api("/api/runs", { method: "POST", body: JSON.stringify(run) })).run;
+  }
+  async function updateRunStatus(runId, status, statusNote = "", notifyPush = true) {
+    return api("/api/admin/run/status", {
+      method: "POST",
+      body: JSON.stringify({ runId, status, statusNote, notifyPush }),
+    });
   }
   async function deleteRun(id) {
     return api("/api/runs/" + encodeURIComponent(id), { method: "DELETE" });
@@ -294,6 +320,217 @@ const MM = (() => {
     return h ? h + ":" + pad(m) + ":" + pad(s) : m + ":" + pad(s);
   }
 
+  // ---- Calendar & GPX Exports ----
+  function toIcsDate(date) {
+    const d = new Date(date);
+    return d.toISOString().replace(/[-:]/g, "").replace(/\.\d{3}/, "");
+  }
+
+  function exportIcs(run) {
+    if (!run) return;
+    const start = new Date(run.startsAt);
+    const end = new Date(start.getTime() + 90 * 60 * 1000); // estimated 90 mins
+    const km = routeKm(run.route);
+    const distText = run.distance || (km ? `~${km.toFixed(1)} km` : "");
+    const title = `MileMark: ${run.title}`;
+    const desc = `${run.blurb || "A Not Another Experience Run."}\n\nDistance: ${distText}\nWhere: ${run.where || "Salbari, North Bengal"}\nApp: ${window.location.origin}`;
+
+    const icsContent = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "PRODID:-//MileMark//Not Another Experience//EN",
+      "CALSCALE:GREGORIAN",
+      "METHOD:PUBLISH",
+      "BEGIN:VEVENT",
+      `UID:${run.id}-${start.getTime()}@milemark.local`,
+      `DTSTAMP:${toIcsDate(new Date())}`,
+      `DTSTART:${toIcsDate(start)}`,
+      `DTEND:${toIcsDate(end)}`,
+      `SUMMARY:${title.replace(/\n/g, "\\n")}`,
+      `DESCRIPTION:${desc.replace(/\n/g, "\\n")}`,
+      `LOCATION:${(run.where || "Salbari, North Bengal").replace(/\n/g, "\\n")}`,
+      "STATUS:CONFIRMED",
+      "END:VEVENT",
+      "END:VCALENDAR",
+    ].join("\r\n");
+
+    const blob = new Blob([icsContent], { type: "text/calendar;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `milemark-${run.id || "run"}.ics`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 200);
+  }
+
+  function googleCalendarUrl(run) {
+    if (!run) return "#";
+    const start = new Date(run.startsAt);
+    const end = new Date(start.getTime() + 90 * 60 * 1000);
+    const km = routeKm(run.route);
+    const distText = run.distance || (km ? `~${km.toFixed(1)} km` : "");
+    const title = `MileMark: ${run.title}`;
+    const details = `${run.blurb || "A Not Another Experience Run."}\n\nDistance: ${distText}\nWhere: ${run.where || "Salbari, North Bengal"}\nApp: ${window.location.origin}`;
+
+    const params = new URLSearchParams({
+      action: "TEMPLATE",
+      text: title,
+      dates: `${toIcsDate(start)}/${toIcsDate(end)}`,
+      details: details,
+      location: run.where || "Salbari, North Bengal",
+    });
+    return `https://calendar.google.com/calendar/render?${params.toString()}`;
+  }
+
+  function exportGpx(run) {
+    if (!run || !run.route || run.route.length < 2) return;
+    const title = run.title || "MileMark Run";
+    const pts = run.route
+      .map(
+        (pt) =>
+          `      <trkpt lat="${Number(pt[0]).toFixed(6)}" lon="${Number(pt[1]).toFixed(6)}"></trkpt>`
+      )
+      .join("\n");
+    const gpxContent = `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="MileMark - Not Another Experience" xmlns="http://www.topografix.com/GPX/1/1">
+  <metadata>
+    <name>MileMark - ${title}</name>
+    <desc>${(run.blurb || "").replace(/[<>&]/g, "")}</desc>
+    <time>${new Date().toISOString()}</time>
+  </metadata>
+  <trk>
+    <name>${title.replace(/[<>&]/g, "")}</name>
+    <type>Running</type>
+    <trkseg>
+${pts}
+    </trkseg>
+  </trk>
+</gpx>`;
+
+    const blob = new Blob([gpxContent], { type: "application/gpx+xml;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `milemark-${run.id || "route"}.gpx`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 200);
+  }
+
+  function exportRosterCsv(run) {
+    if (!run) return;
+    const runners = getRunners(run.id);
+    const headers = ["Alias / Name", "Phone", "Email", "Pace", "Note", "Logged?", "Logged Km", "Logged Time", "Strava URL"];
+    const rows = runners.map((r) => {
+      const res = r.result || {};
+      return [
+        `"${(r.alias || "").replace(/"/g, '""')}"`,
+        `"${(r.phone || "").replace(/"/g, '""')}"`,
+        `"${(r.email || "").replace(/"/g, '""')}"`,
+        `"${(r.pace || "").replace(/"/g, '""')}"`,
+        `"${(r.note || "").replace(/"/g, '""')}"`,
+        res.distanceKm || res.durationSec ? "YES" : "NO",
+        res.distanceKm ? res.distanceKm : "",
+        res.durationSec ? formatTime(res.durationSec) : "",
+        `"${(res.stravaUrl || "").replace(/"/g, '""')}"`,
+      ].join(",");
+    });
+    const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `roster-${run.id || "run"}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 200);
+  }
+
+  // ---- Web Push Client ----
+  function isPushSupported() {
+    return (
+      "serviceWorker" in navigator &&
+      "PushManager" in window &&
+      "Notification" in window
+    );
+  }
+
+  function urlBase64ToUint8Array(base64String) {
+    const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+    const rawData = window.atob(base64);
+    const outputArray = new Uint8Array(rawData.length);
+    for (let i = 0; i < rawData.length; ++i) {
+      outputArray[i] = rawData.charCodeAt(i);
+    }
+    return outputArray;
+  }
+
+  async function getPushSubscription() {
+    if (!isPushSupported()) return null;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      return await reg.pushManager.getSubscription();
+    } catch {
+      return null;
+    }
+  }
+
+  async function subscribePush(runId = null) {
+    if (!isPushSupported()) throw new Error("push notifications not supported on this device");
+    const permission = await Notification.requestPermission();
+    if (permission !== "granted") {
+      throw new Error("notification permission was not granted");
+    }
+
+    const { publicKey } = await api("/api/push/vapid-key");
+    if (!publicKey) throw new Error("VAPID public key not configured on server");
+
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(publicKey),
+      });
+    }
+
+    await api("/api/push/subscribe", {
+      method: "POST",
+      body: JSON.stringify({ subscription: sub.toJSON(), runId }),
+    });
+
+    return sub;
+  }
+
+  async function unsubscribePush() {
+    if (!isPushSupported()) return;
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        const endpoint = sub.endpoint;
+        await sub.unsubscribe();
+        await api("/api/push/unsubscribe", {
+          method: "POST",
+          body: JSON.stringify({ endpoint }),
+        });
+      }
+    } catch {
+      /* ignore error */
+    }
+  }
+
   return {
     MAP_CENTER,
     MAP_ZOOM,
@@ -316,6 +553,7 @@ const MM = (() => {
     runStarted,
     leaderboard,
     upsertRun,
+    updateRunStatus,
     deleteRun,
     adminLogin,
     adminLogout,
@@ -328,5 +566,13 @@ const MM = (() => {
     tileLayers,
     whenText,
     formatTime,
+    exportIcs,
+    googleCalendarUrl,
+    exportGpx,
+    exportRosterCsv,
+    isPushSupported,
+    getPushSubscription,
+    subscribePush,
+    unsubscribePush,
   };
 })();

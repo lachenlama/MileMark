@@ -9,6 +9,8 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const crypto = require("crypto");
+const zlib = require("zlib");
+const webpush = require("web-push");
 
 function loadEnvFile() {
   const envPath = path.join(__dirname, ".env");
@@ -25,6 +27,7 @@ function loadEnvFile() {
   });
 }
 loadEnvFile();
+try { ensureDb(); } catch {}
 
 const PORT = process.env.PORT || 4173;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "milemark-admin";
@@ -42,6 +45,42 @@ const USE_REDIS = Boolean(
   process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN
 );
 const REDIS_KEY = process.env.UPSTASH_REDIS_KEY || "milemark-db";
+
+const VAPID_SUBJECT = process.env.VAPID_SUBJECT || "mailto:admin@milemark.local";
+let vapidPublicKey = process.env.VAPID_PUBLIC_KEY || "";
+let vapidPrivateKey = process.env.VAPID_PRIVATE_KEY || "";
+
+function initVapid(db) {
+  if (vapidPublicKey && vapidPrivateKey) {
+    try {
+      webpush.setVapidDetails(VAPID_SUBJECT, vapidPublicKey, vapidPrivateKey);
+    } catch (e) {
+      console.error("VAPID setup error from env:", e.message);
+    }
+    return;
+  }
+  if (db && db.vapidKeys && db.vapidKeys.publicKey && db.vapidKeys.privateKey) {
+    vapidPublicKey = db.vapidKeys.publicKey;
+    vapidPrivateKey = db.vapidKeys.privateKey;
+    try {
+      webpush.setVapidDetails(VAPID_SUBJECT, vapidPublicKey, vapidPrivateKey);
+    } catch (e) {
+      console.error("VAPID setup error from db:", e.message);
+    }
+    return;
+  }
+  const generated = webpush.generateVAPIDKeys();
+  vapidPublicKey = generated.publicKey;
+  vapidPrivateKey = generated.privateKey;
+  if (db) {
+    db.vapidKeys = generated;
+  }
+  try {
+    webpush.setVapidDetails(VAPID_SUBJECT, vapidPublicKey, vapidPrivateKey);
+  } catch (e) {
+    console.error("VAPID setup error for generated keys:", e.message);
+  }
+}
 
 const POINTS_PER_RUN = 50;
 const LEVELS = [
@@ -81,58 +120,14 @@ const ACHIEVEMENT_CHECKS = {
   "the-distance": (c) => c.totalKm >= 42,
 };
 
-const DEFAULT_RUNS = [
-  {
-    id: "run-zero-2026-06-07",
-    title: "the sunday slow one",
-    blurb:
-      "no medals. no leaderboard flexing. just the road, a bad playlist, and whoever shows up. walk it, run it, talk the whole way.",
-    startsAt: "2026-06-07T06:00:00+05:30",
-    where: "outside the cafe, Salbari",
-    distance: "",
-    featured: true,
-    route: [
-      [26.68, 88.38],
-      [26.6815, 88.382],
-      [26.683, 88.381],
-      [26.6835, 88.3785],
-      [26.682, 88.377],
-      [26.6805, 88.3782],
-      [26.68, 88.38],
-    ],
-  },
-  {
-    id: "run-hill-2026-06-14",
-    title: "the one with the hill",
-    blurb: "short but it bites. one climb, one view, then coffee. bring legs.",
-    startsAt: "2026-06-14T06:30:00+05:30",
-    where: "tba — we'll text the spot",
-    distance: "",
-    featured: false,
-    route: [
-      [26.676, 88.385],
-      [26.6775, 88.3865],
-      [26.679, 88.388],
-      [26.6805, 88.387],
-    ],
-  },
-  {
-    id: "run-sunset-2026-06-21",
-    title: "the golden hour jog",
-    blurb: "evening one. slow, easy, the sky doing its thing. no excuses about mornings.",
-    startsAt: "2026-06-21T17:00:00+05:30",
-    where: "tba",
-    distance: "",
-    featured: false,
-    route: [
-      [26.6845, 88.379],
-      [26.685, 88.3815],
-      [26.6862, 88.383],
-      [26.6855, 88.3855],
-    ],
-  },
-];
-const DEFAULT_DB = { runs: DEFAULT_RUNS, runners: {}, profiles: {} };
+const DEFAULT_RUNS = [];
+const DEFAULT_DB = {
+  runs: [],
+  runners: {},
+  profiles: {},
+  pushSubscriptions: [],
+  vapidKeys: null,
+};
 
 const MIME_TYPES = {
   ".html": "text/html; charset=utf-8",
@@ -163,6 +158,27 @@ const clone = (v) => JSON.parse(JSON.stringify(v));
 
 // ---------- storage ----------
 function ensureDb() {
+  const userUploadDir = "C:\\Users\\lamas\\.gemini\\antigravity-ide\\brain\\d75a34c9-0817-4f47-b1e4-8bd3805e978f\\.user_uploaded";
+  const imgDir = path.join(ROOT, "images");
+  if (fs.existsSync(userUploadDir)) {
+    const artMap = {
+      "coffee.jpg": "media_1787230402177.jpg",       // Coffee by Maailis Pasal
+      "ice-bath.jpg": "media_1787230401957.jpg",     // Icebath
+      "breakfast.jpg": "media_1787230402086.jpg",    // Breakfast by MileMark
+      "dj-set.jpg": "media_1787230401846.jpg",       // DJ set by AROX
+      "group-run.jpg": "media_1787230401613.jpg",    // Group and ice bath / shoes
+    };
+    if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
+    for (const [targetName, srcName] of Object.entries(artMap)) {
+      const srcPath = path.join(userUploadDir, srcName);
+      const targetPath = path.join(imgDir, targetName);
+      if (fs.existsSync(srcPath)) {
+        try {
+          fs.copyFileSync(srcPath, targetPath);
+        } catch {}
+      }
+    }
+  }
   if (USE_REDIS) return;
   if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
   if (!fs.existsSync(DB_PATH)) fs.writeFileSync(DB_PATH, JSON.stringify(DEFAULT_DB, null, 2));
@@ -189,26 +205,65 @@ async function redisSet(value) {
   );
   if (!res.ok) throw new Error(`Upstash SET failed (${res.status})`);
 }
+let memoryDbCache = null;
+let isWritingDb = false;
+const writeQueue = [];
+
+async function flushWriteQueue() {
+  if (isWritingDb || writeQueue.length === 0) return;
+  isWritingDb = true;
+  const nextDb = writeQueue.shift();
+  try {
+    if (USE_REDIS) {
+      await redisSet(JSON.stringify(nextDb));
+    } else {
+      ensureDb();
+      fs.writeFileSync(DB_PATH, JSON.stringify(nextDb, null, 2));
+    }
+  } catch (err) {
+    console.error("Database persistent write error:", err);
+  } finally {
+    isWritingDb = false;
+    if (writeQueue.length > 0) {
+      setImmediate(flushWriteQueue);
+    }
+  }
+}
+
 async function readDb() {
+  if (memoryDbCache) return memoryDbCache;
   if (USE_REDIS) {
     const raw = await redisGet();
-    if (raw) return normalizeDb(JSON.parse(raw));
+    if (raw) {
+      memoryDbCache = normalizeDb(JSON.parse(raw));
+      return memoryDbCache;
+    }
     const seed = clone(DEFAULT_DB);
     await redisSet(JSON.stringify(seed));
-    return normalizeDb(seed);
+    memoryDbCache = normalizeDb(seed);
+    return memoryDbCache;
   }
   ensureDb();
-  return normalizeDb(JSON.parse(fs.readFileSync(DB_PATH, "utf8")));
+  memoryDbCache = normalizeDb(JSON.parse(fs.readFileSync(DB_PATH, "utf8")));
+  return memoryDbCache;
 }
+
 async function writeDb(db) {
-  if (USE_REDIS) return redisSet(JSON.stringify(db));
-  fs.writeFileSync(DB_PATH, JSON.stringify(db, null, 2));
+  memoryDbCache = normalizeDb(db);
+  writeQueue.push(clone(memoryDbCache));
+  flushWriteQueue();
 }
 function normalizeDb(db) {
   if (!db || typeof db !== "object") db = {};
   if (!Array.isArray(db.runs)) db.runs = clone(DEFAULT_RUNS);
+  db.runs.forEach((r) => {
+    if (!r.status) r.status = "scheduled";
+    if (typeof r.statusNote !== "string") r.statusNote = "";
+  });
   if (!db.runners || typeof db.runners !== "object") db.runners = {};
   if (!db.profiles || typeof db.profiles !== "object") db.profiles = {};
+  if (!Array.isArray(db.pushSubscriptions)) db.pushSubscriptions = [];
+  initVapid(db);
   return db;
 }
 
@@ -299,13 +354,67 @@ function slugId(title) {
 }
 
 // ---------- http helpers ----------
-function sendJson(res, statusCode, payload, extraHeaders) {
-  res.writeHead(statusCode, {
+function sendCompressed(req, res, statusCode, headers, body) {
+  const buf = Buffer.isBuffer(body)
+    ? body
+    : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
+
+  const acceptEncoding = String(req?.headers?.["accept-encoding"] || "");
+  const resHeaders = { ...(headers || {}) };
+
+  if (buf.length >= 512) {
+    if (/\bgzip\b/i.test(acceptEncoding)) {
+      zlib.gzip(buf, (err, compressed) => {
+        if (err) {
+          resHeaders["Content-Length"] = buf.length;
+          res.writeHead(statusCode, resHeaders);
+          res.end(buf);
+          return;
+        }
+        resHeaders["Content-Encoding"] = "gzip";
+        resHeaders["Content-Length"] = compressed.length;
+        resHeaders["Vary"] = "Accept-Encoding";
+        res.writeHead(statusCode, resHeaders);
+        res.end(compressed);
+      });
+      return;
+    } else if (/\bdeflate\b/i.test(acceptEncoding)) {
+      zlib.deflate(buf, (err, compressed) => {
+        if (err) {
+          resHeaders["Content-Length"] = buf.length;
+          res.writeHead(statusCode, resHeaders);
+          res.end(buf);
+          return;
+        }
+        resHeaders["Content-Encoding"] = "deflate";
+        resHeaders["Content-Length"] = compressed.length;
+        resHeaders["Vary"] = "Accept-Encoding";
+        res.writeHead(statusCode, resHeaders);
+        res.end(compressed);
+      });
+      return;
+    }
+  }
+
+  resHeaders["Content-Length"] = buf.length;
+  res.writeHead(statusCode, resHeaders);
+  res.end(buf);
+}
+
+function sendJson(res, statusCode, payload, extraHeaders, req) {
+  const headers = {
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store, no-cache, must-revalidate",
     ...(extraHeaders || {}),
-  });
-  res.end(JSON.stringify(payload));
+  };
+  const body = JSON.stringify(payload);
+  const targetReq = req || res._req;
+  if (targetReq) {
+    sendCompressed(targetReq, res, statusCode, headers, body);
+  } else {
+    res.writeHead(statusCode, headers);
+    res.end(body);
+  }
 }
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -380,9 +489,102 @@ function memberKeyFromCookie(req) {
   if (!key || !Number.isFinite(age) || age > MEMBER_SESSION_MS) return null;
   return key;
 }
+const IS_PROD = process.env.NODE_ENV === "production" || Boolean(process.env.VERCEL);
+const SECURE_COOKIE = IS_PROD ? "; Secure" : "";
+
 function memberCookieHeader(key) {
-  return `mm_member=${encodeURIComponent(createMemberCookie(key))}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${MEMBER_SESSION_DAYS * 24 * 60 * 60}`;
+  return `mm_member=${encodeURIComponent(createMemberCookie(key))}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${MEMBER_SESSION_DAYS * 24 * 60 * 60}${SECURE_COOKIE}`;
 }
+// ---------- Rate Limiting ----------
+const rateLimitBuckets = new Map();
+
+function getClientIp(req) {
+  const xff = req.headers["x-forwarded-for"];
+  if (xff && typeof xff === "string") {
+    const firstIp = xff.split(",")[0].trim();
+    if (firstIp) return firstIp;
+  }
+  return (
+    req.socket?.remoteAddress ||
+    req.connection?.remoteAddress ||
+    req.headers["x-real-ip"] ||
+    "127.0.0.1"
+  );
+}
+
+function checkRateLimit(key, maxRequests, windowMs) {
+  const now = Date.now();
+  let record = rateLimitBuckets.get(key);
+  if (!record || record.resetAt <= now) {
+    record = { count: 1, resetAt: now + windowMs };
+    rateLimitBuckets.set(key, record);
+    return { limited: false, remaining: maxRequests - 1, resetInMs: windowMs };
+  }
+  record.count++;
+  if (record.count > maxRequests) {
+    return { limited: true, remaining: 0, resetInMs: Math.max(0, record.resetAt - now) };
+  }
+  return { limited: false, remaining: maxRequests - record.count, resetInMs: Math.max(0, record.resetAt - now) };
+}
+
+function clearRateLimit(key) {
+  rateLimitBuckets.delete(key);
+}
+
+if (typeof setInterval !== "undefined") {
+  const cleanupTimer = setInterval(() => {
+    const now = Date.now();
+    for (const [key, record] of rateLimitBuckets.entries()) {
+      if (record.resetAt <= now) {
+        rateLimitBuckets.delete(key);
+      }
+    }
+  }, 10 * 60 * 1000);
+  if (cleanupTimer.unref) cleanupTimer.unref();
+}
+
+async function broadcastPushNotification(db, { title, body, url, runId }) {
+  if (!webpush || !vapidPublicKey) return { ok: false, sent: 0, failed: 0, error: "Push not configured" };
+  const payload = JSON.stringify({
+    title: String(title || "MileMark").trim().slice(0, 100),
+    body: String(body || "We run soon. See you on the road.").trim().slice(0, 300),
+    url: String(url || "./").trim().slice(0, 200),
+    tag: "milemark-alert-" + Date.now(),
+  });
+
+  let subscribers = db.pushSubscriptions || [];
+  if (runId) {
+    subscribers = subscribers.filter((s) => !s.runId || s.runId === runId);
+  }
+
+  let sent = 0;
+  let failed = 0;
+  const expiredEndpoints = new Set();
+
+  await Promise.all(
+    subscribers.map(async (sub) => {
+      try {
+        await webpush.sendNotification(sub, payload);
+        sent++;
+      } catch (err) {
+        failed++;
+        if (err.statusCode === 404 || err.statusCode === 410) {
+          expiredEndpoints.add(sub.endpoint);
+        } else {
+          console.error("WebPush broadcast error:", err.message);
+        }
+      }
+    })
+  );
+
+  if (expiredEndpoints.size > 0) {
+    db.pushSubscriptions = db.pushSubscriptions.filter((s) => !expiredEndpoints.has(s.endpoint));
+    await writeDb(db);
+  }
+
+  return { ok: true, sent, failed, purged: expiredEndpoints.size };
+}
+
 function requireAdmin(req, res) {
   if (isAdmin(req)) return true;
   sendJson(res, 401, { error: "Admin login required." });
@@ -391,15 +593,27 @@ function requireAdmin(req, res) {
 
 // ---------- API ----------
 async function handleApi(req, res, pathname) {
-  // ---- admin auth ----
+  // ---- admin auth (rate limited to 5 attempts per 15 min per IP) ----
   if (req.method === "POST" && pathname === "/api/admin/login") {
+    const ip = getClientIp(req);
+    const rateKey = `admin_login:${ip}`;
+    const limit = checkRateLimit(rateKey, 5, 15 * 60 * 1000);
+    if (limit.limited) {
+      const minutes = Math.ceil(limit.resetInMs / 60000);
+      sendJson(res, 429, {
+        error: `Too many failed login attempts. Please wait ${minutes} minute${minutes === 1 ? "" : "s"} before trying again.`,
+      });
+      return;
+    }
+
     const body = await readBody(req);
     if (String(body.password || "") !== ADMIN_PASSWORD) {
       sendJson(res, 401, { error: "Wrong admin password." });
       return;
     }
+    clearRateLimit(rateKey);
     sendJson(res, 200, { ok: true, expiresInMinutes: ADMIN_SESSION_MINUTES }, {
-      "Set-Cookie": `mm_admin=${encodeURIComponent(createAdminCookie())}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ADMIN_SESSION_MINUTES * 60}`,
+      "Set-Cookie": `mm_admin=${encodeURIComponent(createAdminCookie())}; HttpOnly; SameSite=Lax; Path=/; Max-Age=${ADMIN_SESSION_MINUTES * 60}${SECURE_COOKIE}`,
     });
     return;
   }
@@ -448,8 +662,18 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
-  // ---- sign up for a run (the core write) ----
+  // ---- sign up for a run (the core write, rate limited to 10 signups per hour per IP) ----
   if (req.method === "POST" && pathname === "/api/join") {
+    const ip = getClientIp(req);
+    const rateKey = `join:${ip}`;
+    const limit = checkRateLimit(rateKey, 10, 60 * 60 * 1000);
+    if (limit.limited) {
+      sendJson(res, 429, {
+        error: "Too many signup requests from this connection. Please wait before trying again.",
+      });
+      return;
+    }
+
     const body = await readBody(req);
     const runId = String(body.runId || "");
     const alias = String(body.alias || "").trim().slice(0, 40);
@@ -464,14 +688,53 @@ async function handleApi(req, res, pathname) {
     // compare by the last 10 digits so "+91 99900 01111" and "9990001111" are the same person
     const phoneTail = phoneDigits.slice(-10);
     if (!run) return sendJson(res, 404, { error: "That run doesn't exist anymore." });
+    if (run.status === "cancelled") {
+      return sendJson(res, 400, { error: "This run has been cancelled by the organizers." });
+    }
     if (!alias) return sendJson(res, 400, { error: "Tell us what to call you." });
     if (phoneDigits.length < 7) return sendJson(res, 400, { error: "Enter a valid phone number." });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
       return sendJson(res, 400, { error: "Enter a valid email." });
 
-    // identity = email. one person gets one spot per run, matched by email OR phone,
-    // so the same person can't sign up twice (even from a new device or a 2nd email).
+    // identity = email. one person gets one spot per run, matched by email OR phone.
     const key = normKey(email);
+    const meKey = memberKeyFromCookie(req);
+    const isSessionOwner = !!meKey && meKey === key;
+    const existingProfile = db.profiles[key];
+
+    // --- Identity Protection: Anti-Collision & Profile Hijacking Prevention ---
+    // If a profile already exists for this email:
+    // 1. If requester has a valid signed session cookie for this key (isSessionOwner), allow update.
+    // 2. If requester does NOT have a valid cookie (new device / cleared browser data):
+    //    Verify that the submitted phone matches the existing profile's registered phone number.
+    //    If phone numbers do NOT match, block the overwrite to prevent an attacker from stealing or modifying another runner's profile/points/alias.
+    if (existingProfile && !isSessionOwner) {
+      const storedPhoneDigits = (existingProfile.phone || "").replace(/\D/g, "");
+      const storedPhoneTail = storedPhoneDigits.slice(-10);
+      if (storedPhoneTail && storedPhoneTail !== phoneTail) {
+        return sendJson(res, 403, {
+          error: "This email is already registered to a runner. Use your original registered phone number or enter your own email.",
+        });
+      }
+    }
+
+    // Phone collision check across profiles:
+    // Prevent an attacker with a different email from claiming an already registered phone number
+    const otherProfileWithPhone = Object.values(db.profiles).find(
+      (p) =>
+        p.key !== key &&
+        p.phone &&
+        p.phone.replace(/\D/g, "").slice(-10) === phoneTail
+    );
+    if (otherProfileWithPhone && !isSessionOwner) {
+      const isOtherSessionOwner = !!meKey && meKey === otherProfileWithPhone.key;
+      if (!isOtherSessionOwner) {
+        return sendJson(res, 409, {
+          error: "This phone number is registered under a different email address. Please use your registered email.",
+        });
+      }
+    }
+
     db.runners[runId] = db.runners[runId] || [];
     const existing = db.runners[runId].find(
       (r) =>
@@ -479,9 +742,13 @@ async function handleApi(req, res, pathname) {
         (r.phone && r.phone.replace(/\D/g, "").slice(-10) === phoneTail)
     );
 
-    // "same identity" = matched by their own email; a phone-only match under a different
-    // email is someone else's spot, so we block without ever touching that person's record.
+    // "same identity" = matched by their own email or verified session
     const sameIdentity = existing && normKey(existing.email || existing.contact) === key;
+    if (existing && !sameIdentity && !isSessionOwner) {
+      return sendJson(res, 409, {
+        error: "This phone number is already registered for this run under a different email.",
+      });
+    }
 
     const profile = db.profiles[key] || { key, alias, points: 0, runs: [], badges: [] };
     profile.alias = alias;
@@ -508,7 +775,6 @@ async function handleApi(req, res, pathname) {
         note: note || existing.note || "", level: level.name,
       });
     }
-    // else: phone already on the wall under a different email — silently blocked (already=true)
 
     const prev = profile.badges || [];
     const earned = achievementIdsFor(profile, db);
@@ -526,8 +792,18 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
-  // ---- honor-system log: record what you actually ran, after the run ----
+  // ---- honor-system log: record what you actually ran, after the run (rate limited to 15 logs per hour per IP) ----
   if (req.method === "POST" && pathname === "/api/log") {
+    const ip = getClientIp(req);
+    const rateKey = `log:${ip}`;
+    const limit = checkRateLimit(rateKey, 15, 60 * 60 * 1000);
+    if (limit.limited) {
+      sendJson(res, 429, {
+        error: "Too many log submissions from this network. Please try again later.",
+      });
+      return;
+    }
+
     const meKey = memberKeyFromCookie(req);
     if (!meKey) return sendJson(res, 401, { error: "Sign up for a run first so we know it's you." });
 
@@ -550,7 +826,8 @@ async function handleApi(req, res, pathname) {
     const distanceKm = Math.max(0, Math.min(200, Math.round((Number(body.distanceKm) || 0) * 100) / 100));
     const note = String(body.note || "").trim().slice(0, 120);
     const rawStrava = String(body.stravaUrl || "").trim();
-    const stravaUrl = /^https?:\/\//.test(rawStrava) ? rawStrava.slice(0, 200) : "";
+    const STRAVA_URL_REGEX = /^https:\/\/(www\.)?(strava\.com|strava\.app\.link)\/[a-zA-Z0-9_\-\.\/?&=%#]+$/i;
+    const stravaUrl = STRAVA_URL_REGEX.test(rawStrava) ? rawStrava.slice(0, 200) : "";
 
     entry.result = { durationSec, distanceKm, note, stravaUrl, at: Date.now() };
 
@@ -610,6 +887,10 @@ async function handleApi(req, res, pathname) {
     if (!title || !startsAt) return sendJson(res, 400, { error: "A run needs a title and a date." });
     if (route.length < 2) return sendJson(res, 400, { error: "Drop at least 2 route points." });
 
+    const validStatuses = ["scheduled", "cancelled", "postponed"];
+    const status = validStatuses.includes(body.status) ? body.status : "scheduled";
+    const statusNote = String(body.statusNote || "").trim().slice(0, 200);
+
     const run = {
       id: body.id || slugId(title),
       title: title.slice(0, 80),
@@ -617,17 +898,92 @@ async function handleApi(req, res, pathname) {
       startsAt,
       where: String(body.where || "").trim().slice(0, 80),
       distance: String(body.distance || "").trim().slice(0, 40),
+      status,
+      statusNote,
       featured: !!body.featured,
       route: route.map((p) => [Number(p[0]), Number(p[1])]),
     };
     if (run.featured) db.runs.forEach((r) => (r.featured = false)); // only one featured
     const i = db.runs.findIndex((r) => r.id === run.id);
+    const prevStatus = i >= 0 ? db.runs[i].status : "scheduled";
     if (i >= 0) db.runs[i] = run;
     else db.runs.push(run);
     await writeDb(db);
-    sendJson(res, i >= 0 ? 200 : 201, { run });
+
+    let pushAlert = null;
+    if (body.notifyPush) {
+      const alertTitle =
+        status === "cancelled"
+          ? `⚠️ Run Cancelled: ${run.title}`
+          : status === "postponed"
+          ? `⏳ Run Postponed: ${run.title}`
+          : `🏃 Run Update: ${run.title}`;
+      const alertBody =
+        statusNote ||
+        (status === "cancelled"
+          ? "This run has been cancelled by organizers. Check the app for updates."
+          : status === "postponed"
+          ? "This run has been postponed. Check the app for the new date and time."
+          : "Details updated for this run. See you on the road!");
+      pushAlert = await broadcastPushNotification(db, {
+        title: alertTitle,
+        body: alertBody,
+        url: "./",
+        runId: run.id,
+      });
+    }
+
+    sendJson(res, i >= 0 ? 200 : 201, { run, pushAlert });
     return;
   }
+
+  // Quick run status update & instant push broadcast
+  if (req.method === "POST" && pathname === "/api/admin/run/status") {
+    if (!requireAdmin(req, res)) return;
+    const body = await readBody(req);
+    const runId = String(body.runId || "").trim();
+    const run = db.runs.find((r) => r.id === runId);
+    if (!run) return sendJson(res, 404, { error: "Run not found." });
+
+    const validStatuses = ["scheduled", "cancelled", "postponed"];
+    if (!validStatuses.includes(body.status)) {
+      return sendJson(res, 400, { error: "Invalid status. Must be scheduled, cancelled, or postponed." });
+    }
+
+    run.status = body.status;
+    if (typeof body.statusNote === "string") {
+      run.statusNote = body.statusNote.trim().slice(0, 200);
+    }
+    await writeDb(db);
+
+    let pushAlert = null;
+    if (body.notifyPush !== false) {
+      const alertTitle =
+        run.status === "cancelled"
+          ? `⚠️ Run Cancelled: ${run.title}`
+          : run.status === "postponed"
+          ? `⏳ Run Postponed: ${run.title}`
+          : `🏃 Run Re-scheduled: ${run.title}`;
+      const alertBody =
+        run.statusNote ||
+        (run.status === "cancelled"
+          ? "This run has been cancelled. Check the app for updates."
+          : run.status === "postponed"
+          ? "This run has been postponed. Check the app for the new schedule."
+          : "This run is back on schedule! See you at the starting point.");
+
+      pushAlert = await broadcastPushNotification(db, {
+        title: alertTitle,
+        body: alertBody,
+        url: "./",
+        runId: run.id,
+      });
+    }
+
+    sendJson(res, 200, { ok: true, run, pushAlert });
+    return;
+  }
+
   if (req.method === "DELETE" && pathname.startsWith("/api/runs/")) {
     if (!requireAdmin(req, res)) return;
     const id = decodeURIComponent(pathname.replace("/api/runs/", ""));
@@ -637,6 +993,116 @@ async function handleApi(req, res, pathname) {
     delete db.runners[id];
     await writeDb(db);
     sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  // ---- web push notifications ----
+  if (req.method === "GET" && pathname === "/api/push/vapid-key") {
+    sendJson(res, 200, { publicKey: vapidPublicKey });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/push/subscribe") {
+    const body = await readBody(req);
+    const subscription = body.subscription;
+    if (!subscription || !subscription.endpoint || !subscription.keys) {
+      return sendJson(res, 400, { error: "Invalid push subscription object." });
+    }
+    const meKey = memberKeyFromCookie(req);
+    const runId = String(body.runId || "").trim();
+    db.pushSubscriptions = db.pushSubscriptions || [];
+    const idx = db.pushSubscriptions.findIndex((s) => s.endpoint === subscription.endpoint);
+    const subRecord = {
+      ...subscription,
+      memberKey: meKey || null,
+      runId: runId || null,
+      updatedAt: Date.now(),
+    };
+    if (idx >= 0) {
+      db.pushSubscriptions[idx] = subRecord;
+    } else {
+      db.pushSubscriptions.push(subRecord);
+    }
+    await writeDb(db);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/push/unsubscribe") {
+    const body = await readBody(req);
+    const endpoint = String(body.endpoint || "").trim();
+    if (endpoint) {
+      db.pushSubscriptions = (db.pushSubscriptions || []).filter((s) => s.endpoint !== endpoint);
+      await writeDb(db);
+    }
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (req.method === "GET" && pathname === "/api/admin/push/stats") {
+    if (!requireAdmin(req, res)) return;
+    const count = (db.pushSubscriptions || []).length;
+    sendJson(res, 200, { count });
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/admin/push/broadcast") {
+    if (!requireAdmin(req, res)) return;
+    const body = await readBody(req);
+    const title = String(body.title || "MileMark").trim().slice(0, 100);
+    const message = String(body.body || "We run soon. See you on the road.").trim().slice(0, 300);
+    const url = String(body.url || "./").trim().slice(0, 200);
+    const targetRunId = String(body.runId || "").trim();
+
+    const pushResult = await broadcastPushNotification(db, {
+      title,
+      body: message,
+      url,
+      runId: targetRunId,
+    });
+
+    sendJson(res, 200, pushResult);
+    return;
+  }
+
+  if (req.method === "POST" && pathname === "/api/admin/push/test") {
+    if (!requireAdmin(req, res)) return;
+    const body = await readBody(req);
+    const targetSub = body.subscription;
+    const title = String(body.title || "MileMark [Test]").trim().slice(0, 100);
+    const message = String(
+      body.body || "This is a test notification from MileMark organizers."
+    ).trim().slice(0, 300);
+
+    const payload = JSON.stringify({
+      title,
+      body: message,
+      url: "./",
+      tag: "milemark-test-" + Date.now(),
+    });
+
+    if (targetSub && targetSub.endpoint) {
+      try {
+        await webpush.sendNotification(targetSub, payload);
+        sendJson(res, 200, { ok: true, sent: 1 });
+        return;
+      } catch (err) {
+        sendJson(res, 500, { error: "Failed to send test notification: " + err.message });
+        return;
+      }
+    }
+
+    const firstSub = (db.pushSubscriptions || [])[0];
+    if (!firstSub) {
+      sendJson(res, 400, { error: "No push subscribers found to test with." });
+      return;
+    }
+    try {
+      await webpush.sendNotification(firstSub, payload);
+      sendJson(res, 200, { ok: true, sent: 1 });
+    } catch (err) {
+      sendJson(res, 500, { error: "Failed to send test notification: " + err.message });
+    }
     return;
   }
 
@@ -656,6 +1122,9 @@ function serveStatic(req, res, pathname) {
     res.end("forbidden");
     return;
   }
+  if (pathname.startsWith("/images/")) {
+    try { ensureDb(); } catch {}
+  }
   const safe = pathname === "/" ? "/index.html" : pathname;
   const filePath = path.normalize(path.join(ROOT, decodeURIComponent(safe)));
   if (!filePath.startsWith(ROOT)) {
@@ -663,22 +1132,51 @@ function serveStatic(req, res, pathname) {
     res.end("forbidden");
     return;
   }
-  fs.readFile(filePath, (err, data) => {
-    if (err) {
+
+  fs.stat(filePath, (statErr, stat) => {
+    if (statErr || !stat.isFile()) {
       res.writeHead(404);
       res.end("not found");
       return;
     }
+
+    const etag = `W/"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
     const ext = path.extname(filePath);
-    const headers = { "Content-Type": MIME_TYPES[ext] || "application/octet-stream" };
-    if (pathname === "/sw.js") headers["Cache-Control"] = "no-cache";
-    res.writeHead(200, headers);
-    res.end(data);
+    const isImg = [".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico"].includes(ext);
+    const cacheControl = pathname === "/sw.js"
+      ? "no-cache, must-revalidate"
+      : isImg
+      ? "public, max-age=31536000, immutable"
+      : "public, max-age=3600, stale-while-revalidate=86400";
+
+    if (req.headers["if-none-match"] === etag) {
+      res.writeHead(304, {
+        "ETag": etag,
+        "Cache-Control": cacheControl,
+      });
+      res.end();
+      return;
+    }
+
+    fs.readFile(filePath, (err, data) => {
+      if (err) {
+        res.writeHead(404);
+        res.end("not found");
+        return;
+      }
+      const headers = {
+        "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
+        "ETag": etag,
+        "Cache-Control": cacheControl,
+      };
+      sendCompressed(req, res, 200, headers, data);
+    });
   });
 }
 
 function handleRequest(req, res) {
   try {
+    res._req = req;
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
     if (url.pathname.startsWith("/api/")) {
       Promise.resolve(handleApi(req, res, url.pathname)).catch((error) => {
