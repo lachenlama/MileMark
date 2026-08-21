@@ -30,7 +30,7 @@
       integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
       crossorigin=""
     />
-    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="styles.css?v=27" />
   </head>
   <body>
     <header class="topbar">
@@ -73,6 +73,11 @@
         </div>
 
         <div id="featuredContent" hidden>
+          <div class="hero-stickers" aria-hidden="true">
+            <span class="sticker-tag sticker-yellow">⚡ 5K · SOCIAL RUN</span>
+            <span class="sticker-tag sticker-cyan">☕ COFFEE & DRINKS</span>
+            <span class="sticker-tag sticker-pink">🔥 NOT A RACE</span>
+          </div>
           <div id="featuredStatusBanner" class="run-status-banner" hidden>
             <span class="status-pill" id="featuredStatusPill"></span>
             <span class="status-note" id="featuredStatusNote"></span>
@@ -130,9 +135,7 @@
         <p class="happenings-sub">the run is the excuse. this is the rest of the day — cold water, coffee, physical games, and people who stayed.</p>
 
         <div class="hap-carousel">
-          <button class="hap-nav hap-prev" id="hapPrev" type="button" aria-label="previous" disabled>‹</button>
           <div class="hap-grid" id="hapGrid"></div>
-          <button class="hap-nav hap-next" id="hapNext" type="button" aria-label="next">›</button>
         </div>
         <div class="hap-dots" id="hapDots" aria-hidden="true"></div>
 
@@ -245,15 +248,16 @@
     </div>
 
     <div id="toast" class="toast" hidden></div>
+    <canvas id="fxCanvas" class="fx-canvas" aria-hidden="true"></canvas>
 
     <script
       src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
       integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
       crossorigin=""
     ></script>
-    <script src="data.js"></script>
-    <script src="share.js"></script>
-    <script src="app.js"></script>
-    <script src="events.js"></script>
+    <script src="data.js?v=27"></script>
+    <script src="share.js?v=27"></script>
+    <script src="app.js?v=27"></script>
+    <script src="events.js?v=27"></script>
   </body>
 </html>

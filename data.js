@@ -424,6 +424,14 @@ ${pts}
     }, 200);
   }
 
+  function safeCsvCell(val) {
+    let str = (val || "").toString().replace(/"/g, '""');
+    if (/^[=\+\-@\t\r]/.test(str)) {
+      str = "'" + str;
+    }
+    return `"${str}"`;
+  }
+
   function exportRosterCsv(run) {
     if (!run) return;
     const runners = getRunners(run.id);
@@ -431,15 +439,15 @@ ${pts}
     const rows = runners.map((r) => {
       const res = r.result || {};
       return [
-        `"${(r.alias || "").replace(/"/g, '""')}"`,
-        `"${(r.phone || "").replace(/"/g, '""')}"`,
-        `"${(r.email || "").replace(/"/g, '""')}"`,
-        `"${(r.pace || "").replace(/"/g, '""')}"`,
-        `"${(r.note || "").replace(/"/g, '""')}"`,
+        safeCsvCell(r.alias),
+        safeCsvCell(r.phone),
+        safeCsvCell(r.email),
+        safeCsvCell(r.pace),
+        safeCsvCell(r.note),
         res.distanceKm || res.durationSec ? "YES" : "NO",
         res.distanceKm ? res.distanceKm : "",
         res.durationSec ? formatTime(res.durationSec) : "",
-        `"${(res.stravaUrl || "").replace(/"/g, '""')}"`,
+        safeCsvCell(res.stravaUrl),
       ].join(",");
     });
     const csvContent = "\uFEFF" + [headers.join(","), ...rows].join("\r\n");
