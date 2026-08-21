@@ -350,6 +350,20 @@ async function handleTestPush() {
 
 // ---------- init ----------
 async function init() {
+  try {
+    const auth = await fetch("/api/admin/me").then((r) => r.json());
+    if (!auth.admin) {
+      location.href = "admin-login.html";
+      return;
+    }
+  } catch {
+    location.href = "admin-login.html";
+    return;
+  }
+
+  const adminMain = $("#adminMain");
+  if (adminMain) adminMain.hidden = false;
+
   initMap();
   redrawRoute();
   $("#runForm").addEventListener("submit", saveRun);

@@ -31,6 +31,7 @@ const MM = (() => {
     { id: "first-finish", name: "first finish", glyph: "⚑", tone: "#46e39c", note: "you didn't just sign up. you finished, then said so.", hint: "log a run after you've done it." },
     { id: "the-long-way", name: "the long way", glyph: "⟿", tone: "#7c9eff", note: "ten clicks in one go. you took the long way on purpose.", hint: "log a single run of 10km or more." },
     { id: "the-distance", name: "the distance", glyph: "∞", tone: "#ffd43b", note: "forty-two km logged, all told — the distance of the myth.", hint: "log 42km total across your runs." },
+    { id: "not-another-intruder", name: "the intruder", issuer: "Not Another Exp.", glyph: "👁️", tone: "#00f0ff", note: "you ain't suppose to be here ;) genesis badge minted under Not Another Exp.", hint: "stumble into the hidden organiser room.", isNft: true },
   ];
 
   // map default center — Salbari / Siliguri area, North Bengal
@@ -177,6 +178,16 @@ const MM = (() => {
     return (await api("/api/leaderboard")).leaders || [];
   }
 
+  async function claimEasterEgg({ alias, email } = {}) {
+    const res = await api("/api/claim-easter-egg", {
+      method: "POST",
+      body: JSON.stringify({ alias, email }),
+    });
+    await refresh();
+    const badge = ACHIEVEMENTS.find((b) => b.id === "not-another-intruder");
+    return { ...res, badge };
+  }
+
   // ---- admin ----
   async function upsertRun(run) {
     return (await api("/api/runs", { method: "POST", body: JSON.stringify(run) })).run;
@@ -235,8 +246,8 @@ const MM = (() => {
       const a =
         Math.sin(dLa / 2) ** 2 +
         Math.cos((la1 * Math.PI) / 180) *
-          Math.cos((la2 * Math.PI) / 180) *
-          Math.sin(dLo / 2) ** 2;
+        Math.cos((la2 * Math.PI) / 180) *
+        Math.sin(dLo / 2) ** 2;
       km += 2 * R * Math.asin(Math.sqrt(a));
     }
     return km;
@@ -560,6 +571,7 @@ ${pts}
     myResult,
     runStarted,
     leaderboard,
+    claimEasterEgg,
     upsertRun,
     updateRunStatus,
     deleteRun,

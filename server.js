@@ -27,7 +27,7 @@ function loadEnvFile() {
   });
 }
 loadEnvFile();
-try { ensureDb(); } catch {}
+try { ensureDb(); } catch { }
 
 const PORT = process.env.PORT || 4173;
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "milemark-admin";
@@ -165,7 +165,7 @@ function ensureDb() {
   const bgGenPath = path.join(brainDir, "site_bg_pattern_1787251535547.jpg");
   const bgTargetPath = path.join(imgDir, "bg.jpg");
   if (fs.existsSync(bgGenPath)) {
-    try { fs.copyFileSync(bgGenPath, bgTargetPath); } catch {}
+    try { fs.copyFileSync(bgGenPath, bgTargetPath); } catch { }
   }
   if (fs.existsSync(userUploadDir)) {
     const artMap = {
@@ -181,7 +181,7 @@ function ensureDb() {
       if (fs.existsSync(srcPath)) {
         try {
           fs.copyFileSync(srcPath, targetPath);
-        } catch {}
+        } catch { }
       }
     }
   }
@@ -327,7 +327,10 @@ function achievementIdsFor(profile, db) {
     totalKm: profile.totalKm || 0,
     maxKm,
   };
-  return ACHIEVEMENT_ORDER.filter((id) => ACHIEVEMENT_CHECKS[id](ctx));
+  const computed = ACHIEVEMENT_ORDER.filter((id) => ACHIEVEMENT_CHECKS[id] && ACHIEVEMENT_CHECKS[id](ctx));
+  // Preserve special / easter-egg badges minted under Not Another Exp.
+  const special = (profile.badges || []).filter((id) => !ACHIEVEMENT_CHECKS[id]);
+  return [...new Set([...computed, ...special])];
 }
 function publicProfile(p) {
   return {
@@ -876,6 +879,63 @@ async function handleApi(req, res, pathname) {
     return;
   }
 
+  // ---- easter egg badge claim: Not Another Exp. ----
+  if (req.method === "POST" && pathname === "/api/claim-easter-egg") {
+    const body = await readBody(req);
+    const meKey = memberKeyFromCookie(req);
+    let key = meKey;
+    const alias = String(body.alias || "").trim().slice(0, 40);
+    const email = String(body.email || "").trim().toLowerCase().slice(0, 120);
+
+    if (!key) {
+      if (!email || !alias) {
+        sendJson(res, 400, { error: "Please enter your name and email to mint the badge." });
+        return;
+      }
+      key = normKey(email);
+    }
+
+    const profile = db.profiles[key] || {
+      key,
+      alias: alias || "explorer",
+      email: email || "",
+      phone: "",
+      ig: "",
+      points: 0,
+      runs: [],
+      badges: [],
+    };
+    if (alias) profile.alias = alias;
+    if (email && !profile.email) profile.email = email;
+
+    const BADGE_ID = "not-another-intruder";
+    profile.badges = profile.badges || [];
+    const alreadyHad = profile.badges.includes(BADGE_ID);
+    if (!alreadyHad) {
+      profile.badges.push(BADGE_ID);
+      profile.points = (profile.points || 0) + 100;
+    }
+    db.profiles[key] = profile;
+    await writeDb(db);
+
+    const tokenId = "NAE-GEN0-" + Math.abs(key.split("").reduce((a, b) => ((a << 5) - a + b.charCodeAt(0)) | 0, 0)).toString(16).toUpperCase().padStart(6, "0");
+
+    sendJson(
+      res,
+      200,
+      {
+        ok: true,
+        alreadyHad,
+        tokenId,
+        badgeId: BADGE_ID,
+        profile: publicProfile(profile),
+        level: levelFor(profile.points),
+      },
+      { "Set-Cookie": memberCookieHeader(key) }
+    );
+    return;
+  }
+
   // ---- the regulars (available for a future UI; brand stays anti-flex) ----
   if (req.method === "GET" && pathname === "/api/leaderboard") {
     const leaders = Object.values(db.profiles)
@@ -930,15 +990,15 @@ async function handleApi(req, res, pathname) {
         status === "cancelled"
           ? `⚠️ Run Cancelled: ${run.title}`
           : status === "postponed"
-          ? `⏳ Run Postponed: ${run.title}`
-          : `🏃 Run Update: ${run.title}`;
+            ? `⏳ Run Postponed: ${run.title}`
+            : `🏃 Run Update: ${run.title}`;
       const alertBody =
         statusNote ||
         (status === "cancelled"
           ? "This run has been cancelled by organizers. Check the app for updates."
           : status === "postponed"
-          ? "This run has been postponed. Check the app for the new date and time."
-          : "Details updated for this run. See you on the road!");
+            ? "This run has been postponed. Check the app for the new date and time."
+            : "Details updated for this run. See you on the road!");
       pushAlert = await broadcastPushNotification(db, {
         title: alertTitle,
         body: alertBody,
@@ -976,15 +1036,15 @@ async function handleApi(req, res, pathname) {
         run.status === "cancelled"
           ? `⚠️ Run Cancelled: ${run.title}`
           : run.status === "postponed"
-          ? `⏳ Run Postponed: ${run.title}`
-          : `🏃 Run Re-scheduled: ${run.title}`;
+            ? `⏳ Run Postponed: ${run.title}`
+            : `🏃 Run Re-scheduled: ${run.title}`;
       const alertBody =
         run.statusNote ||
         (run.status === "cancelled"
           ? "This run has been cancelled. Check the app for updates."
           : run.status === "postponed"
-          ? "This run has been postponed. Check the app for the new schedule."
-          : "This run is back on schedule! See you at the starting point.");
+            ? "This run has been postponed. Check the app for the new schedule."
+            : "This run is back on schedule! See you at the starting point.");
 
       pushAlert = await broadcastPushNotification(db, {
         title: alertTitle,
@@ -1137,7 +1197,7 @@ function serveStatic(req, res, pathname) {
     return;
   }
   if (pathname.startsWith("/images/")) {
-    try { ensureDb(); } catch {}
+    try { ensureDb(); } catch { }
   }
   const safe = pathname === "/" ? "/index.html" : pathname;
   const filePath = path.normalize(path.join(ROOT, decodeURIComponent(safe)));
@@ -1161,8 +1221,8 @@ function serveStatic(req, res, pathname) {
     const cacheControl = pathname === "/sw.js" || isDev
       ? "no-cache, must-revalidate"
       : isImg
-      ? "public, max-age=31536000, immutable"
-      : "public, max-age=3600, stale-while-revalidate=86400";
+        ? "public, max-age=31536000, immutable"
+        : "public, max-age=3600, stale-while-revalidate=86400";
 
     if (req.headers["if-none-match"] === etag) {
       res.writeHead(304, {

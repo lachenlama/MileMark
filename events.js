@@ -182,42 +182,123 @@
       });
     }
 
-    // Touch & mouse drag swiping support
-    let isDown = false;
-    let startX = 0;
-    let scrollLeft = 0;
+    // ---- Mobile Touch Gesture Swiping ----
+    let touchStartX = 0;
+    let touchStartY = 0;
+    let touchStartScroll = 0;
+    let touchStartTime = 0;
+    let isTouchSwiping = false;
+    let isScrollingVertical = false;
+
+    grid.addEventListener(
+      "touchstart",
+      (e) => {
+        if (e.touches.length !== 1) return;
+        stopAuto();
+        const t = e.touches[0];
+        touchStartX = t.clientX;
+        touchStartY = t.clientY;
+        touchStartScroll = grid.scrollLeft;
+        touchStartTime = Date.now();
+        isTouchSwiping = false;
+        isScrollingVertical = false;
+      },
+      { passive: true }
+    );
+
+    grid.addEventListener(
+      "touchmove",
+      (e) => {
+        if (e.touches.length !== 1 || isScrollingVertical) return;
+        const t = e.touches[0];
+        const dx = touchStartX - t.clientX;
+        const dy = touchStartY - t.clientY;
+
+        // If predominantly vertical scroll, let normal page scrolling happen
+        if (!isTouchSwiping && Math.abs(dy) > Math.abs(dx) && Math.abs(dy) > 7) {
+          isScrollingVertical = true;
+          return;
+        }
+
+        // Horizontal swipe gesture detected
+        if (Math.abs(dx) > 6) {
+          isTouchSwiping = true;
+          grid.style.scrollSnapType = "none";
+          grid.scrollLeft = touchStartScroll + dx;
+        }
+      },
+      { passive: true }
+    );
+
+    const finishTouchSwipe = (e) => {
+      if (isScrollingVertical) {
+        startAuto();
+        return;
+      }
+      grid.style.scrollSnapType = "x mandatory";
+      if (isTouchSwiping) {
+        const changedTouch = e.changedTouches ? e.changedTouches[0] : null;
+        const dx = changedTouch ? touchStartX - changedTouch.clientX : 0;
+        const dt = Math.max(1, Date.now() - touchStartTime);
+        const velocity = Math.abs(dx) / dt;
+
+        const currentIdx = activeIndex();
+        const cards = visibleCards();
+
+        // If fast flick or dragged > 35px, advance or go back
+        if (Math.abs(dx) > 35 || velocity > 0.25) {
+          if (dx > 0 && currentIdx < cards.length - 1) {
+            scrollToCard(currentIdx + 1);
+          } else if (dx < 0 && currentIdx > 0) {
+            scrollToCard(currentIdx - 1);
+          } else {
+            scrollToCard(currentIdx);
+          }
+        } else {
+          scrollToCard(currentIdx);
+        }
+      }
+      isTouchSwiping = false;
+      isScrollingVertical = false;
+      startAuto();
+    };
+
+    grid.addEventListener("touchend", finishTouchSwipe, { passive: true });
+    grid.addEventListener("touchcancel", finishTouchSwipe, { passive: true });
+
+    // ---- Desktop Mouse Drag Swiping ----
+    let isMouseDown = false;
+    let mouseStartX = 0;
+    let mouseStartScroll = 0;
 
     grid.addEventListener("mousedown", (e) => {
-      isDown = true;
-      startX = e.pageX - grid.offsetLeft;
-      scrollLeft = grid.scrollLeft;
+      isMouseDown = true;
+      mouseStartX = e.pageX - grid.offsetLeft;
+      mouseStartScroll = grid.scrollLeft;
       grid.style.cursor = "grabbing";
-      grid.style.scrollSnapType = "none"; // free scroll while dragging
+      grid.style.scrollSnapType = "none";
       stopAuto();
     });
 
     window.addEventListener("mousemove", (e) => {
-      if (!isDown) return;
+      if (!isMouseDown) return;
       e.preventDefault();
       const x = e.pageX - grid.offsetLeft;
-      const walk = (x - startX) * 1.2;
-      grid.scrollLeft = scrollLeft - walk;
+      const walk = (x - mouseStartX) * 1.25;
+      grid.scrollLeft = mouseStartScroll - walk;
     });
 
-    const endDrag = () => {
-      if (!isDown) return;
-      isDown = false;
+    const endMouseDrag = () => {
+      if (!isMouseDown) return;
+      isMouseDown = false;
       grid.style.cursor = "";
       grid.style.scrollSnapType = "x mandatory";
       scrollToCard(activeIndex());
       startAuto();
     };
 
-    window.addEventListener("mouseup", endDrag);
-    grid.addEventListener("mouseleave", endDrag);
-
-    // a manual swipe/drag should also reset the auto-advance clock
-    grid.addEventListener("pointerdown", startAuto, { passive: true });
+    window.addEventListener("mouseup", endMouseDrag);
+    grid.addEventListener("mouseleave", endMouseDrag);
 
     let ticking = false;
     grid.addEventListener("scroll", () => {
@@ -229,7 +310,7 @@
       });
     });
 
-    // pause cycling when the tab is hidden; resume when it's back
+    // Pause cycling when the tab is hidden; resume when it's back
     document.addEventListener("visibilitychange", () => (document.hidden ? stopAuto() : startAuto()));
     carouselBuilt = true;
   }

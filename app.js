@@ -150,7 +150,10 @@ function renderMarks(p) {
   for (const b of [...earned, ...locked]) {
     const el = document.createElement(b.earned ? "button" : "div");
     el.className = "mark " + (b.earned ? "earned" : "locked");
+    if (b.isNft || b.issuer === "Not Another Exp.") el.classList.add("mark-nft");
+    const nftTag = b.isNft || b.issuer === "Not Another Exp." ? '<span class="mark-nft-tag">NOT ANOTHER EXP. · NFT</span>' : "";
     el.innerHTML = `
+      ${nftTag}
       <span class="mark-glyph">${b.glyph}</span>
       <span class="mark-name"></span>
       <span class="mark-note"></span>
@@ -819,7 +822,7 @@ function setupPushReminders() {
 
 // ---------- service worker ----------
 if ("serviceWorker" in navigator) {
-  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => { }));
 }
 
 function renderAll() {
@@ -873,7 +876,7 @@ async function init() {
       try {
         await MM.refresh();
         renderAll();
-      } catch {}
+      } catch { }
     }
   });
 }

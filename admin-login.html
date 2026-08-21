@@ -1,55 +1,286 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>MileMark · admin login</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="styles.css" />
-  </head>
-  <body class="admin">
-    <header class="topbar">
-      <a class="wordmark" href="index.html">MILE<span>MARK</span> · admin</a>
-      <a class="ghost-btn" href="index.html">view app →</a>
-    </header>
 
-    <main class="login-main">
-      <form id="loginForm" class="login-card">
-        <h1>admin</h1>
-        <p class="login-sub">just the people who set the runs. drop the password.</p>
-        <label>
-          password
-          <input name="password" type="password" autocomplete="current-password" required />
-        </label>
-        <button type="submit" class="cta">let me in →</button>
-        <p class="login-fine" id="loginMsg" hidden></p>
-      </form>
-    </main>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>MileMark · admin login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <link rel="stylesheet" href="styles.css?v=40" />
+</head>
 
-    <script src="data.js"></script>
-    <script>
-      const form = document.getElementById("loginForm");
-      const msg = document.getElementById("loginMsg");
-      form.addEventListener("submit", async (e) => {
-        e.preventDefault();
-        const password = new FormData(form).get("password");
-        const btn = form.querySelector('button[type="submit"]');
-        btn.disabled = true;
-        msg.hidden = true;
-        try {
-          await MM.adminLogin(password);
-          location.href = "/admin.html";
-        } catch (err) {
-          msg.textContent = err.message || "wrong password";
-          msg.hidden = false;
-          btn.disabled = false;
+<body class="admin">
+  <canvas id="confettiCanvas" class="confetti-canvas"></canvas>
+
+  <header class="topbar">
+    <a class="wordmark" href="index.html">MILE<span>MARK</span> · admin</a>
+    <a class="ghost-btn" href="index.html">view app →</a>
+  </header>
+
+  <main class="login-main">
+    <!-- ORGANIZER LOGIN -->
+    <form id="loginForm" class="login-card">
+      <h1>admin</h1>
+      <p class="login-sub">just the people who set the runs. drop the password.</p>
+      <label>
+        password
+        <input name="password" type="password" autocomplete="current-password" required />
+      </label>
+      <button type="submit" class="cta">let me in →</button>
+      <p class="login-fine" id="loginMsg" hidden></p>
+    </form>
+
+    <!-- EASTER EGG FOR CURIOUS VISITORS -->
+    <section class="easter-egg-box" id="easterEggBox">
+      <div class="ee-badge-halo">👁️</div>
+      <div class="ee-text-wrap">
+        <div class="ee-pill">✨ NOT ANOTHER EXP. · SECRET PROTOCOL</div>
+        <h2 class="ee-title">Not Another User?</h2>
+        <p class="ee-prompt">You ain't suppose to be here ;) <span>Claim your badge!</span></p>
+        <p class="ee-meta">
+          Minted under <b>Not Another Exp.</b> (not MileMark). Guaranteed eligibility for future <b>Not Another Exp. NFT
+            drops</b>.
+        </p>
+      </div>
+      <button type="button" class="cta ee-cta" id="claimEggBtn">
+        claim your badge ✦
+      </button>
+    </section>
+  </main>
+
+  <!-- CLAIM / MINT MODAL SHEET -->
+  <div id="claimModal" class="sheet" hidden>
+    <div class="sheet-backdrop" id="claimBackdrop"></div>
+    <div class="sheet-card claim-sheet-card">
+      <button class="sheet-close" id="closeClaimBtn" aria-label="close">✕</button>
+
+      <div id="claimFormView">
+        <div class="ee-pill">⚡ NOT ANOTHER EXP. · GENESIS MINT</div>
+        <h2 style="font-family:var(--font-display); font-size:2.2rem; margin:0.3rem 0; text-transform:lowercase;">claim
+          genesis badge</h2>
+        <p style="color:var(--muted); font-size:0.92rem; margin-bottom:1.2rem;">
+          Where should we send your future <b>Not Another Exp. NFT</b>?
+        </p>
+
+        <form id="eggMintForm" style="display:grid; gap:0.9rem;">
+          <label
+            style="display:grid; gap:0.4rem; text-transform:uppercase; font-size:0.75rem; letter-spacing:0.1em; color:var(--muted);">
+            what should we call you?
+            <input id="eggAlias" type="text" placeholder="e.g. Neo / Ghost" required
+              style="background:#161616; border:1.5px solid var(--line); border-radius:10px; padding:0.8rem 1rem; color:#fff; font:inherit; font-weight:700;" />
+          </label>
+          <label
+            style="display:grid; gap:0.4rem; text-transform:uppercase; font-size:0.75rem; letter-spacing:0.1em; color:var(--muted);">
+            your email (for future NFT drop)
+            <input id="eggEmail" type="email" placeholder="you@example.com" required
+              style="background:#161616; border:1.5px solid var(--line); border-radius:10px; padding:0.8rem 1rem; color:#fff; font:inherit; font-weight:700;" />
+          </label>
+          <button type="submit" class="cta ee-cta" id="mintSubmitBtn" style="margin-top:0.4rem;">
+            mint badge under Not Another Exp. →
+          </button>
+          <p id="eggErr" class="login-fine" hidden></p>
+        </form>
+      </div>
+
+      <div id="claimSuccessView" hidden style="text-align:center; display:grid; gap:0.8rem;">
+        <div style="font-size:3.5rem; line-height:1; filter:drop-shadow(0 0 20px #00f0ff);">👁️</div>
+        <div class="ee-pill" style="margin:0 auto;">MINTED ON-CHAIN · READY FOR NFT AIRDROP</div>
+        <h2 style="font-family:var(--font-display); font-size:2.4rem; margin:0; text-transform:lowercase;">the intruder
+        </h2>
+        <p style="font-family:var(--font-script); color:var(--yellow); font-size:1.3rem; margin:0;">
+          “you ain't suppose to be here ;)”
+        </p>
+        <div
+          style="background:rgba(0,240,255,0.08); border:1px solid #00f0ff; border-radius:10px; padding:0.8rem; font-size:0.82rem; text-align:left; color:var(--muted);">
+          <div><b>ISSUER:</b> <span style="color:#00f0ff;">Not Another Exp.</span></div>
+          <div><b>PROTOCOL:</b> NAE-GEN0-NFT</div>
+          <div><b>TOKEN ID:</b> <span id="tokenIdDisplay"
+              style="color:#fff; font-family:monospace; font-weight:700;">#NAE-GEN0-001</span></div>
+        </div>
+        <button type="button" class="cta" id="shareBadgeBtn"
+          style="background:#00f0ff; color:#000; border:2px solid #000;">
+          ↗ share / save story
+        </button>
+        <a href="index.html" class="ghost-btn" style="text-align:center;">← back to milemark</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- SHARE MODAL CONTAINER -->
+  <div id="shareModal" class="share-modal" hidden>
+    <div class="sm-backdrop" id="smBackdrop"></div>
+    <div class="sm-card">
+      <button class="sm-close" id="smClose" aria-label="close">✕</button>
+      <p class="sm-kicker" id="smKicker">share the mark</p>
+      <h3 id="smTitle">Not Another Exp.</h3>
+      <div class="sm-preview" id="smPreview"></div>
+      <div class="sm-actions">
+        <button id="smShare" class="cta sm-save">share to instagram story ↗</button>
+        <p class="sm-fine">story card sized (9:16) · saved straight to your camera roll</p>
+      </div>
+    </div>
+  </div>
+
+  <script src="data.js?v=40"></script>
+  <script src="share.js?v=40"></script>
+  <script>
+    // ---- Confetti System ----
+    const canvas = document.getElementById("confettiCanvas");
+    const ctx = canvas ? canvas.getContext("2d") : null;
+    let particles = [];
+    function resizeCanvas() {
+      if (!canvas) return;
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
+
+    function triggerConfetti(x, y) {
+      if (!ctx) return;
+      const colors = ["#00f0ff", "#ff2a5f", "#ffd43b", "#ffffff", "#7c9eff"];
+      for (let i = 0; i < 70; i++) {
+        const angle = Math.random() * Math.PI * 2;
+        const speed = Math.random() * 9 + 4;
+        particles.push({
+          x: x || window.innerWidth / 2,
+          y: y || window.innerHeight / 2,
+          vx: Math.cos(angle) * speed,
+          vy: Math.sin(angle) * speed - 2,
+          size: Math.random() * 7 + 4,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          rotation: Math.random() * 360,
+          vRot: (Math.random() - 0.5) * 12,
+          alpha: 1,
+          decay: Math.random() * 0.02 + 0.015,
+        });
+      }
+    }
+
+    function updateConfetti() {
+      if (!ctx) return;
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      for (let i = particles.length - 1; i >= 0; i--) {
+        const p = particles[i];
+        p.x += p.vx;
+        p.y += p.vy;
+        p.vy += 0.22;
+        p.rotation += p.vRot;
+        p.alpha -= p.decay;
+        if (p.alpha <= 0) {
+          particles.splice(i, 1);
+          continue;
         }
-      });
-    </script>
-  </body>
+        ctx.save();
+        ctx.globalAlpha = p.alpha;
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        ctx.restore();
+      }
+      requestAnimationFrame(updateConfetti);
+    }
+    requestAnimationFrame(updateConfetti);
+
+    // ---- Admin Login Handler ----
+    const form = document.getElementById("loginForm");
+    const msg = document.getElementById("loginMsg");
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const password = new FormData(form).get("password");
+      const btn = form.querySelector('button[type="submit"]');
+      btn.disabled = true;
+      msg.hidden = true;
+      try {
+        await MM.adminLogin(password);
+        location.href = "/admin.html";
+      } catch (err) {
+        msg.textContent = err.message || "wrong password";
+        msg.hidden = false;
+        btn.disabled = false;
+      }
+    });
+
+    // ---- Easter Egg Claim Handler ----
+    const claimModal = document.getElementById("claimModal");
+    const claimEggBtn = document.getElementById("claimEggBtn");
+    const closeClaimBtn = document.getElementById("closeClaimBtn");
+    const claimBackdrop = document.getElementById("claimBackdrop");
+    const eggMintForm = document.getElementById("eggMintForm");
+    const claimFormView = document.getElementById("claimFormView");
+    const claimSuccessView = document.getElementById("claimSuccessView");
+    const tokenIdDisplay = document.getElementById("tokenIdDisplay");
+    const shareBadgeBtn = document.getElementById("shareBadgeBtn");
+    const eggErr = document.getElementById("eggErr");
+
+    let currentMintedData = null;
+
+    function openClaimModal() {
+      claimModal.hidden = false;
+      claimFormView.hidden = false;
+      claimSuccessView.hidden = true;
+      eggErr.hidden = true;
+    }
+    function closeClaimModal() {
+      claimModal.hidden = true;
+    }
+
+    closeClaimBtn.addEventListener("click", closeClaimModal);
+    claimBackdrop.addEventListener("click", closeClaimModal);
+
+    claimEggBtn.addEventListener("click", async (e) => {
+      await MM.refresh().catch(() => { });
+      const me = MM.me();
+      if (me && me.alias) {
+        // Already have profile: 1-click instant mint!
+        try {
+          const res = await MM.claimEasterEgg();
+          showSuccess(res, e.clientX, e.clientY);
+        } catch {
+          openClaimModal();
+        }
+      } else {
+        openClaimModal();
+      }
+    });
+
+    eggMintForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const alias = document.getElementById("eggAlias").value.trim();
+      const email = document.getElementById("eggEmail").value.trim();
+      const btn = document.getElementById("mintSubmitBtn");
+      btn.disabled = true;
+      eggErr.hidden = true;
+
+      try {
+        const res = await MM.claimEasterEgg({ alias, email });
+        showSuccess(res, window.innerWidth / 2, window.innerHeight / 2);
+      } catch (err) {
+        eggErr.textContent = err.message || "could not mint badge";
+        eggErr.hidden = false;
+        btn.disabled = false;
+      }
+    });
+
+    function showSuccess(res, x, y) {
+      currentMintedData = res;
+      claimFormView.hidden = true;
+      claimSuccessView.hidden = false;
+      claimModal.hidden = false;
+      if (tokenIdDisplay) tokenIdDisplay.textContent = res.tokenId || "#NAE-GEN0-777";
+      triggerConfetti(x, y);
+    }
+
+    shareBadgeBtn.addEventListener("click", () => {
+      if (!currentMintedData || !currentMintedData.badge) return;
+      MMShare.openBadge(currentMintedData.badge, currentMintedData.profile);
+    });
+  </script>
+</body>
+
 </html>

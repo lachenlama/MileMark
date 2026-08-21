@@ -1,263 +1,276 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-    <title>MileMark — we run together</title>
-    <meta
-      name="description"
-      content="MileMark — run club managed by Not Another Experience. No medals, no leaderboard flexing. Just the road and whoever shows up."
-    />
 
-    <!-- PWA -->
-    <link rel="manifest" href="manifest.webmanifest" />
-    <meta name="theme-color" content="#080808" />
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
-    <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="MileMark" />
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>MileMark — we run together</title>
+  <meta name="description"
+    content="MileMark — run club managed by Not Another Experience. No medals, no leaderboard flexing. Just the road and whoever shows up." />
 
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap"
-      rel="stylesheet"
-    />
-    <!-- Leaflet (map) -->
-    <link
-      rel="stylesheet"
-      href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
-      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY="
-      crossorigin=""
-    />
-    <link rel="stylesheet" href="styles.css?v=27" />
-  </head>
-  <body>
-    <header class="topbar">
-      <a class="wordmark" href="#top">MILE<span>MARK</span></a>
-      <div class="topbar-actions">
-        <button id="pushToggleBtn" class="ghost-btn push-toggle-btn" title="Get run reminders">🔔 remind me</button>
-        <button id="installBtn" class="ghost-btn" hidden>install</button>
+  <!-- PWA -->
+  <link rel="manifest" href="manifest.webmanifest" />
+  <meta name="theme-color" content="#080808" />
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="MileMark" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Anton&family=Caveat:wght@500;600;700&family=Hanken+Grotesk:wght@400;500;600;700;800;900&display=swap"
+    rel="stylesheet" />
+  <!-- Leaflet (map) -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin="" />
+  <link rel="stylesheet" href="styles.css?v=40" />
+</head>
+
+<body>
+  <header class="topbar">
+    <a class="wordmark" href="#top">MILE<span>MARK</span></a>
+    <div class="topbar-actions">
+      <button id="pushToggleBtn" class="ghost-btn push-toggle-btn" title="Get run reminders">🔔 remind me</button>
+      <button id="installBtn" class="ghost-btn" hidden>install</button>
+    </div>
+  </header>
+
+  <main id="top">
+    <!-- YOUR CARD (gamification) -->
+    <section id="profileCard" class="profile-card" hidden>
+      <span class="avatar" id="pcAvatar"></span>
+      <div class="pc-body">
+        <div class="pc-top">
+          <b id="pcName"></b>
+          <span class="level-badge" id="pcLevel"></span>
+        </div>
+        <div class="pc-bar"><span id="pcBarFill"></span></div>
+        <small class="pc-meta">
+          <span id="pcPoints">0</span> pts ·
+          <span id="pcNext"></span> ·
+          <span id="pcRuns">0</span> runs
+        </small>
       </div>
-    </header>
+    </section>
 
-    <main id="top">
-      <!-- YOUR CARD (gamification) -->
-      <section id="profileCard" class="profile-card" hidden>
-        <span class="avatar" id="pcAvatar"></span>
-        <div class="pc-body">
-          <div class="pc-top">
-            <b id="pcName"></b>
-            <span class="level-badge" id="pcLevel"></span>
-          </div>
-          <div class="pc-bar"><span id="pcBarFill"></span></div>
-          <small class="pc-meta">
-            <span id="pcPoints">0</span> pts ·
-            <span id="pcNext"></span> ·
-            <span id="pcRuns">0</span> runs
-          </small>
+    <!-- THE APP NOTICING YOU -->
+    <p id="notedLine" class="noted" hidden></p>
+
+    <!-- FEATURED RUN -->
+    <section class="hero" id="featured">
+      <!-- ELEGANT EMPTY STATE (default when zero runs are scheduled) -->
+      <div id="featuredEmpty" class="hero-empty-state">
+        <div class="empty-route-icon">📍</div>
+        <h2>no runs scheduled yet</h2>
+        <p class="hero-sub">the next route drops soon. turn on reminders to get alerted the moment we drop the pins.</p>
+        <button type="button" class="cta" id="emptyNotifyBtn">🔔 notify me when route drops</button>
+      </div>
+
+      <div id="featuredContent" hidden>
+        <div class="hero-stickers" aria-hidden="true">
+          <span class="sticker-tag sticker-yellow">⚡ 5K · SOCIAL RUN</span>
+          <span class="sticker-tag sticker-cyan">☕ COFFEE & DRINKS</span>
+          <span class="sticker-tag sticker-pink">🔥 NOT A RACE</span>
         </div>
-      </section>
+        <div id="featuredStatusBanner" class="run-status-banner" hidden>
+          <span class="status-pill" id="featuredStatusPill"></span>
+          <span class="status-note" id="featuredStatusNote"></span>
+        </div>
+        <p class="eyebrow">this week's run</p>
+        <h1 id="runTitle">—</h1>
+        <p class="hero-sub" id="runBlurb"></p>
 
-      <!-- THE APP NOTICING YOU -->
-      <p id="notedLine" class="noted" hidden></p>
-
-      <!-- FEATURED RUN -->
-      <section class="hero" id="featured">
-        <!-- ELEGANT EMPTY STATE (default when zero runs are scheduled) -->
-        <div id="featuredEmpty" class="hero-empty-state">
-          <div class="empty-route-icon">📍</div>
-          <h2>no runs scheduled yet</h2>
-          <p class="hero-sub">the next route drops soon. turn on reminders to get alerted the moment we drop the pins.</p>
-          <button type="button" class="cta" id="emptyNotifyBtn">🔔 notify me when route drops</button>
+        <div id="mapWrap" class="map-wrap">
+          <div id="map"></div>
+          <span class="map-tag" id="mapDist"></span>
         </div>
 
-        <div id="featuredContent" hidden>
-          <div class="hero-stickers" aria-hidden="true">
-            <span class="sticker-tag sticker-yellow">⚡ 5K · SOCIAL RUN</span>
-            <span class="sticker-tag sticker-cyan">☕ COFFEE & DRINKS</span>
-            <span class="sticker-tag sticker-pink">🔥 NOT A RACE</span>
-          </div>
-          <div id="featuredStatusBanner" class="run-status-banner" hidden>
-            <span class="status-pill" id="featuredStatusPill"></span>
-            <span class="status-note" id="featuredStatusNote"></span>
-          </div>
-          <p class="eyebrow">this week's run</p>
-          <h1 id="runTitle">—</h1>
-          <p class="hero-sub" id="runBlurb"></p>
+        <div class="countdown" id="countdown" aria-live="polite">
+          <div class="cd-unit"><span data-cd="days">0</span><label>days</label></div>
+          <div class="cd-unit"><span data-cd="hours">0</span><label>hrs</label></div>
+          <div class="cd-unit"><span data-cd="mins">0</span><label>min</label></div>
+          <div class="cd-unit"><span data-cd="secs">0</span><label>sec</label></div>
+        </div>
 
-          <div id="mapWrap" class="map-wrap">
-            <div id="map"></div>
-            <span class="map-tag" id="mapDist"></span>
+        <dl class="run-meta">
+          <div>
+            <dt>when</dt>
+            <dd id="metaWhen">—</dd>
           </div>
-
-          <div class="countdown" id="countdown" aria-live="polite">
-            <div class="cd-unit"><span data-cd="days">0</span><label>days</label></div>
-            <div class="cd-unit"><span data-cd="hours">0</span><label>hrs</label></div>
-            <div class="cd-unit"><span data-cd="mins">0</span><label>min</label></div>
-            <div class="cd-unit"><span data-cd="secs">0</span><label>sec</label></div>
+          <div>
+            <dt>where</dt>
+            <dd id="metaWhere">—</dd>
           </div>
+          <div>
+            <dt>distance</dt>
+            <dd id="metaDist">—</dd>
+          </div>
+        </dl>
 
-          <dl class="run-meta">
-            <div><dt>when</dt><dd id="metaWhen">—</dd></div>
-            <div><dt>where</dt><dd id="metaWhere">—</dd></div>
-            <div><dt>distance</dt><dd id="metaDist">—</dd></div>
-          </dl>
+        <div class="hero-cta-wrap">
+          <button class="cta" id="joinFeatured">i'm in →</button>
+          <button class="cta" id="logFeatured" hidden>log your run →</button>
 
-          <div class="hero-cta-wrap">
-            <button class="cta" id="joinFeatured">i'm in →</button>
-            <button class="cta" id="logFeatured" hidden>log your run →</button>
-            
-            <div class="hero-sub-actions">
-              <div class="dropdown" id="calDropdown">
-                <button type="button" class="ghost-btn icon-btn" id="calBtn" aria-haspopup="true" aria-expanded="false">
-                  📅 add to cal ▾
-                </button>
-                <div class="dropdown-menu" id="calMenu" hidden>
-                  <button type="button" class="dropdown-item" id="calGoogle">Google Calendar ↗</button>
-                  <button type="button" class="dropdown-item" id="calIcs">Apple / iCal (.ics) ↓</button>
-                </div>
-              </div>
-              <button type="button" class="ghost-btn icon-btn" id="gpxFeatured">
-                📍 gpx route ↓
+          <div class="hero-sub-actions">
+            <div class="dropdown" id="calDropdown">
+              <button type="button" class="ghost-btn icon-btn" id="calBtn" aria-haspopup="true" aria-expanded="false">
+                📅 add to cal ▾
               </button>
-              <button class="ghost-btn share-line-btn" id="shareFeatured" hidden>↗ share that you're in</button>
+              <div class="dropdown-menu" id="calMenu" hidden>
+                <button type="button" class="dropdown-item" id="calGoogle">Google Calendar ↗</button>
+                <button type="button" class="dropdown-item" id="calIcs">Apple / iCal (.ics) ↓</button>
+              </div>
             </div>
-          </div>
-          <p class="count-line"><span id="countNum">0</span> showing up so far</p>
-        </div>
-      </section>
-
-      <!-- HAPPENINGS — the stuff around the run -->
-      <section class="happenings" id="happenings">
-        <p class="eyebrow">more than a run</p>
-        <h2>what else is on</h2>
-        <p class="happenings-sub">the run is the excuse. this is the rest of the day — cold water, coffee, physical games, and people who stayed.</p>
-
-        <div class="hap-carousel">
-          <div class="hap-grid" id="hapGrid"></div>
-        </div>
-        <div class="hap-dots" id="hapDots" aria-hidden="true"></div>
-
-        <p class="count-line"><span id="hapCount">—</span></p>
-      </section>
-
-      <!-- WHO'S SHOWING UP (featured run) -->
-      <section class="wall" id="wallSection" hidden>
-        <h2>who's showing up</h2>
-        <div class="runner-wall">
-          <div class="runner-scroll">
-            <ul id="runnerList" class="runner-list"></ul>
+            <button type="button" class="ghost-btn icon-btn" id="gpxFeatured">
+              📍 gpx route ↓
+            </button>
+            <button class="ghost-btn share-line-btn" id="shareFeatured" hidden>↗ share that you're in</button>
           </div>
         </div>
-        <p id="emptyState" class="empty">nobody yet. be the first name on the wall.</p>
-      </section>
+        <p class="count-line"><span id="countNum">0</span> showing up so far</p>
+      </div>
+    </section>
 
-      <!-- YOUR MARKS (shareable achievements) -->
-      <section id="marksSection" class="marks" hidden>
-        <h2>your marks</h2>
-        <p class="marks-sub">little proofs you showed up. tap one to drop it on your story.</p>
-        <div id="marksGrid" class="marks-grid"></div>
-      </section>
+    <!-- HAPPENINGS — the stuff around the run -->
+    <section class="happenings" id="happenings">
+      <p class="eyebrow">more than a run</p>
+      <h2>what else is on</h2>
+      <p class="happenings-sub">the run is the excuse. this is the rest of the day — cold water, coffee, physical games,
+        and people who stayed.</p>
 
-      <!-- MORE RUNS -->
-      <section class="more" id="moreSection" hidden>
-        <h2>more runs</h2>
-        <div id="runCards" class="run-cards"></div>
-      </section>
+      <div class="hap-carousel">
+        <div class="hap-grid" id="hapGrid"></div>
+      </div>
+      <div class="hap-dots" id="hapDots" aria-hidden="true"></div>
 
-      <footer class="footer">
-        <p>by Not Another Experience</p>
-        <p class="dim">MileMark</p>
-        <a class="footer-admin" href="admin.html" aria-label="organiser admin">organisers ·&nbsp;admin</a>
-      </footer>
-    </main>
+      <p class="count-line"><span id="hapCount">—</span></p>
+    </section>
 
-    <!-- REGISTER SHEET -->
-    <div id="sheet" class="sheet" hidden>
-      <div class="sheet-backdrop" data-close></div>
-      <form id="joinForm" class="sheet-card" novalidate>
-        <button type="button" class="sheet-x" data-close aria-label="close">✕</button>
-        <h3>lock it in</h3>
-        <p class="sheet-sub" id="sheetRun">for the run</p>
-
-        <label>
-          what do we call you
-          <input name="alias" type="text" placeholder="alias or real name" required maxlength="40" />
-        </label>
-        <label>
-          phone number
-          <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 98765 43210" required maxlength="30" />
-        </label>
-        <label>
-          email
-          <input name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required maxlength="120" />
-        </label>
-        <label>
-          instagram <span class="opt">(optional)</span>
-          <input name="ig" type="text" autocomplete="off" placeholder="@yourhandle" maxlength="40" />
-        </label>
-
-        <fieldset class="pace">
-          <legend>your pace, honestly</legend>
-          <label class="chip"><input type="radio" name="pace" value="just here for it" checked /><span>just here for it</span></label>
-          <label class="chip"><input type="radio" name="pace" value="easy jog" /><span>easy jog</span></label>
-          <label class="chip"><input type="radio" name="pace" value="i'll push" /><span>i'll push</span></label>
-        </fieldset>
-
-        <label>
-          anything else (optional)
-          <input name="note" type="text" placeholder="bringing a friend? injured? say it" maxlength="80" />
-        </label>
-
-        <button type="submit" class="cta">put me on the wall</button>
-        <p class="sheet-fine">+50 pts when you sign up. stored on your phone for now.</p>
-      </form>
-    </div>
-
-    <!-- LOG SHEET (honor-system: what you actually ran) -->
-    <div id="logSheet" class="sheet" hidden>
-      <div class="sheet-backdrop" data-log-close></div>
-      <form id="logForm" class="sheet-card" novalidate>
-        <button type="button" class="sheet-x" data-log-close aria-label="close">✕</button>
-        <h3>you ran it</h3>
-        <p class="sheet-sub" id="logRun">how'd it go?</p>
-
-        <div class="form-row">
-          <label>
-            your time
-            <input name="time" type="text" inputmode="numeric" placeholder="28:30" maxlength="9" />
-          </label>
-          <label>
-            distance (km)
-            <input name="distance" type="number" step="0.1" min="0" placeholder="5.0" />
-          </label>
+    <!-- WHO'S SHOWING UP (featured run) -->
+    <section class="wall" id="wallSection" hidden>
+      <h2>who's showing up</h2>
+      <div class="runner-wall">
+        <div class="runner-scroll">
+          <ul id="runnerList" class="runner-list"></ul>
         </div>
+      </div>
+      <p id="emptyState" class="empty">nobody yet. be the first name on the wall.</p>
+    </section>
+
+    <!-- YOUR MARKS (shareable achievements) -->
+    <section id="marksSection" class="marks" hidden>
+      <h2>your marks</h2>
+      <p class="marks-sub">little proofs you showed up. tap one to drop it on your story.</p>
+      <div id="marksGrid" class="marks-grid"></div>
+    </section>
+
+    <!-- MORE RUNS -->
+    <section class="more" id="moreSection" hidden>
+      <h2>more runs</h2>
+      <div id="runCards" class="run-cards"></div>
+    </section>
+
+    <footer class="footer">
+      <div class="footer-curator-card">
+        <div class="footer-brand-strip">
+          <img src="images/NotAnotherExp.svg" alt="Not Another Exp." class="footer-logo" />
+          <span class="footer-x">✕</span>
+          <img src="images/MileMark.svg" alt="MileMark" class="footer-logo" />
+        </div>
+        <p class="footer-curator-lead">MileMark community run</p>
+        <p class="footer-curator-sub">Curated Digitally by Not Another Exp.</p>
+      </div>
+      <a class="footer-admin" href="admin-login.html" aria-label="organiser admin">organisers ·&nbsp;admin</a>
+    </footer>
+  </main>
+
+  <!-- REGISTER SHEET -->
+  <div id="sheet" class="sheet" hidden>
+    <div class="sheet-backdrop" data-close></div>
+    <form id="joinForm" class="sheet-card" novalidate>
+      <button type="button" class="sheet-x" data-close aria-label="close">✕</button>
+      <h3>lock it in</h3>
+      <p class="sheet-sub" id="sheetRun">for the run</p>
+
+      <label>
+        what do we call you
+        <input name="alias" type="text" placeholder="alias or real name" required maxlength="40" />
+      </label>
+      <label>
+        phone number
+        <input name="phone" type="tel" inputmode="tel" autocomplete="tel" placeholder="+91 98765 43210" required
+          maxlength="30" />
+      </label>
+      <label>
+        email
+        <input name="email" type="email" inputmode="email" autocomplete="email" placeholder="you@email.com" required
+          maxlength="120" />
+      </label>
+      <label>
+        instagram <span class="opt">(optional)</span>
+        <input name="ig" type="text" autocomplete="off" placeholder="@yourhandle" maxlength="40" />
+      </label>
+
+      <fieldset class="pace">
+        <legend>your pace, honestly</legend>
+        <label class="chip"><input type="radio" name="pace" value="just here for it" checked /><span>just here for
+            it</span></label>
+        <label class="chip"><input type="radio" name="pace" value="easy jog" /><span>easy jog</span></label>
+        <label class="chip"><input type="radio" name="pace" value="i'll push" /><span>i'll push</span></label>
+      </fieldset>
+
+      <label>
+        anything else (optional)
+        <input name="note" type="text" placeholder="bringing a friend? injured? say it" maxlength="80" />
+      </label>
+
+      <button type="submit" class="cta">put me on the wall</button>
+      <p class="sheet-fine">+50 pts when you sign up. stored on your phone for now.</p>
+    </form>
+  </div>
+
+  <!-- LOG SHEET (honor-system: what you actually ran) -->
+  <div id="logSheet" class="sheet" hidden>
+    <div class="sheet-backdrop" data-log-close></div>
+    <form id="logForm" class="sheet-card" novalidate>
+      <button type="button" class="sheet-x" data-log-close aria-label="close">✕</button>
+      <h3>you ran it</h3>
+      <p class="sheet-sub" id="logRun">how'd it go?</p>
+
+      <div class="form-row">
         <label>
-          one line about it (optional)
-          <input name="note" type="text" placeholder="walked the last bit. worth it." maxlength="120" />
+          your time
+          <input name="time" type="text" inputmode="numeric" placeholder="28:30" maxlength="9" />
         </label>
         <label>
-          strava link (optional)
-          <input name="stravaUrl" type="url" placeholder="https://strava.app.link/…" maxlength="200" />
+          distance (km)
+          <input name="distance" type="number" step="0.1" min="0" placeholder="5.0" />
         </label>
+      </div>
+      <label>
+        one line about it (optional)
+        <input name="note" type="text" placeholder="walked the last bit. worth it." maxlength="120" />
+      </label>
+      <label>
+        strava link (optional)
+        <input name="stravaUrl" type="url" placeholder="https://strava.app.link/…" maxlength="200" />
+      </label>
 
-        <button type="submit" class="cta">log it →</button>
-        <p class="sheet-fine">no GPS, no tracking. just your word — that's the whole point.</p>
-      </form>
-    </div>
+      <button type="submit" class="cta">log it →</button>
+      <p class="sheet-fine">no GPS, no tracking. just your word — that's the whole point.</p>
+    </form>
+  </div>
 
-    <div id="toast" class="toast" hidden></div>
-    <canvas id="fxCanvas" class="fx-canvas" aria-hidden="true"></canvas>
+  <div id="toast" class="toast" hidden></div>
+  <canvas id="fxCanvas" class="fx-canvas" aria-hidden="true"></canvas>
 
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo="
-      crossorigin=""
-    ></script>
-    <script src="data.js?v=27"></script>
-    <script src="share.js?v=27"></script>
-    <script src="app.js?v=27"></script>
-    <script src="events.js?v=27"></script>
-  </body>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <script src="data.js?v=40"></script>
+  <script src="share.js?v=40"></script>
+  <script src="app.js?v=40"></script>
+  <script src="events.js?v=40"></script>
+</body>
+
 </html>
