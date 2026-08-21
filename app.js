@@ -50,6 +50,85 @@ function renderNoted(p) {
   el.innerHTML = personalNote(p);
 }
 
+// ---------- party confetti / FX engine ----------
+function triggerConfetti(originX, originY) {
+  const canvas = $("#fxCanvas");
+  if (!canvas) return;
+  const ctx = canvas.getContext("2d");
+  const W = (canvas.width = window.innerWidth);
+  const H = (canvas.height = window.innerHeight);
+  const x = originX ?? W / 2;
+  const y = originY ?? H * 0.4;
+  const colors = ["#f5ff00", "#ff2a5f", "#00f0ff", "#00ff88", "#b266ff", "#ffffff"];
+  const pieces = Array.from({ length: 70 }, () => {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 4 + Math.random() * 9;
+    return {
+      x,
+      y,
+      vx: Math.cos(angle) * speed,
+      vy: Math.sin(angle) * speed - 3,
+      size: 5 + Math.random() * 7,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      rotation: Math.random() * 360,
+      spin: (Math.random() - 0.5) * 12,
+      opacity: 1,
+      gravity: 0.22,
+      shape: Math.random() > 0.4 ? "rect" : "star",
+    };
+  });
+
+  let animId;
+  function update() {
+    ctx.clearRect(0, 0, W, H);
+    let active = false;
+    for (const p of pieces) {
+      p.x += p.vx;
+      p.y += p.vy;
+      p.vy += p.gravity;
+      p.vx *= 0.98;
+      p.rotation += p.spin;
+      p.opacity -= 0.012;
+      if (p.opacity > 0 && p.y < H + 20) {
+        active = true;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate((p.rotation * Math.PI) / 180);
+        ctx.fillStyle = p.color;
+        ctx.globalAlpha = Math.max(0, p.opacity);
+        if (p.shape === "rect") {
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size * 0.6);
+        } else {
+          ctx.beginPath();
+          ctx.arc(0, 0, p.size / 2, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+    }
+    if (active) {
+      animId = requestAnimationFrame(update);
+    } else {
+      ctx.clearRect(0, 0, W, H);
+      cancelAnimationFrame(animId);
+    }
+  }
+  update();
+}
+
+function triggerEmojiBubble(element, emoji) {
+  if (!element) return;
+  const emojis = ["🎉", "⚡", "☕", "🔥", "🏃", "🕺", "💃", "🏆", "🤙", "✨"];
+  const em = emoji || emojis[Math.floor(Math.random() * emojis.length)];
+  const pop = document.createElement("span");
+  pop.className = "emoji-pop";
+  pop.textContent = em;
+  pop.style.left = "50%";
+  pop.style.top = "10%";
+  element.appendChild(pop);
+  setTimeout(() => pop.remove(), 900);
+}
+
 // ---------- your marks (shareable achievements) ----------
 function renderMarks(p) {
   const sec = $("#marksSection");
@@ -79,7 +158,12 @@ function renderMarks(p) {
     el.querySelector(".mark-name").textContent = b.name;
     el.querySelector(".mark-note").textContent = b.earned ? b.note : b.hint;
     el.querySelector(".mark-share").textContent = b.earned ? "↗ share" : "not yet";
-    if (b.earned) el.addEventListener("click", () => MMShare.openBadge(b, p));
+    if (b.earned) {
+      el.addEventListener("click", (e) => {
+        triggerConfetti(e.clientX, e.clientY);
+        MMShare.openBadge(b, p);
+      });
+    }
     frag.appendChild(el);
   }
   grid.appendChild(frag);
@@ -250,7 +334,7 @@ function renderWall(runId) {
     if (isYou) {
       const tag = document.createElement("span");
       tag.className = "you-tag";
-      tag.textContent = "← this is you";
+      tag.textContent = "★ this is you";
       tagSlot.replaceWith(tag);
     } else if (res) {
       const tag = document.createElement("span");
@@ -269,7 +353,24 @@ function renderWall(runId) {
       tagSlot.replaceWith(tag);
     } else {
       tagSlot.textContent = r.pace;
+      const paceNorm = (r.pace || "").toLowerCase();
+      if (paceNorm.includes("just here")) {
+        tagSlot.style.background = "var(--lime)";
+        tagSlot.style.color = "#000";
+      } else if (paceNorm.includes("easy")) {
+        tagSlot.style.background = "var(--cyan)";
+        tagSlot.style.color = "#000";
+      } else if (paceNorm.includes("push")) {
+        tagSlot.style.background = "var(--red)";
+        tagSlot.style.color = "#fff";
+      }
     }
+
+    // Tap to trigger mini celebratory emoji bubble
+    li.addEventListener("click", () => {
+      triggerEmojiBubble(li);
+    });
+
     frag.appendChild(li);
   }
   ul.appendChild(frag);
@@ -469,6 +570,7 @@ async function handleLogSubmit(e) {
   renderProfile();
   renderFeatured();
   renderCards();
+  triggerConfetti();
 
   const run = MM.getRuns().find((r) => r.id === activeLogRunId);
   if (result.newBadges && result.newBadges.length) {
@@ -527,6 +629,7 @@ async function handleSubmit(e) {
   renderProfile();
   renderFeatured();
   renderCards();
+  triggerConfetti();
 
   // a new mark earned → quiet little moment + a card to share. else just a toast.
   if (newBadges && newBadges.length) {

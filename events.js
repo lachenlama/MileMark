@@ -173,17 +173,48 @@
     if (carouselBuilt) return;
     const grid = document.getElementById("hapGrid");
     const dotsEl = document.getElementById("hapDots");
-    const prev = document.getElementById("hapPrev");
-    const next = document.getElementById("hapNext");
     if (!grid) return;
 
-    if (prev) prev.addEventListener("click", () => nudge(activeIndex() - 1));
-    if (next) next.addEventListener("click", () => nudge(activeIndex() + 1));
-    if (dotsEl)
+    if (dotsEl) {
       dotsEl.addEventListener("click", (e) => {
         const b = e.target.closest(".hap-dot-btn");
         if (b) nudge(+b.dataset.i);
       });
+    }
+
+    // Touch & mouse drag swiping support
+    let isDown = false;
+    let startX = 0;
+    let scrollLeft = 0;
+
+    grid.addEventListener("mousedown", (e) => {
+      isDown = true;
+      startX = e.pageX - grid.offsetLeft;
+      scrollLeft = grid.scrollLeft;
+      grid.style.cursor = "grabbing";
+      grid.style.scrollSnapType = "none"; // free scroll while dragging
+      stopAuto();
+    });
+
+    window.addEventListener("mousemove", (e) => {
+      if (!isDown) return;
+      e.preventDefault();
+      const x = e.pageX - grid.offsetLeft;
+      const walk = (x - startX) * 1.2;
+      grid.scrollLeft = scrollLeft - walk;
+    });
+
+    const endDrag = () => {
+      if (!isDown) return;
+      isDown = false;
+      grid.style.cursor = "";
+      grid.style.scrollSnapType = "x mandatory";
+      scrollToCard(activeIndex());
+      startAuto();
+    };
+
+    window.addEventListener("mouseup", endDrag);
+    grid.addEventListener("mouseleave", endDrag);
 
     // a manual swipe/drag should also reset the auto-advance clock
     grid.addEventListener("pointerdown", startAuto, { passive: true });

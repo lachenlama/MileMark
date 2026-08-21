@@ -158,8 +158,15 @@ const clone = (v) => JSON.parse(JSON.stringify(v));
 
 // ---------- storage ----------
 function ensureDb() {
-  const userUploadDir = "C:\\Users\\lamas\\.gemini\\antigravity-ide\\brain\\d75a34c9-0817-4f47-b1e4-8bd3805e978f\\.user_uploaded";
+  const brainDir = "C:\\Users\\lamas\\.gemini\\antigravity-ide\\brain\\d75a34c9-0817-4f47-b1e4-8bd3805e978f";
+  const userUploadDir = path.join(brainDir, ".user_uploaded");
   const imgDir = path.join(ROOT, "images");
+  if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
+  const bgGenPath = path.join(brainDir, "site_bg_pattern_1787251535547.jpg");
+  const bgTargetPath = path.join(imgDir, "bg.jpg");
+  if (fs.existsSync(bgGenPath)) {
+    try { fs.copyFileSync(bgGenPath, bgTargetPath); } catch {}
+  }
   if (fs.existsSync(userUploadDir)) {
     const artMap = {
       "coffee.jpg": "media_1787230402177.jpg",       // Coffee by Maailis Pasal
@@ -168,7 +175,6 @@ function ensureDb() {
       "dj-set.jpg": "media_1787230401846.jpg",       // DJ set by AROX
       "group-run.jpg": "media_1787230401613.jpg",    // Group and ice bath / shoes
     };
-    if (!fs.existsSync(imgDir)) fs.mkdirSync(imgDir, { recursive: true });
     for (const [targetName, srcName] of Object.entries(artMap)) {
       const srcPath = path.join(userUploadDir, srcName);
       const targetPath = path.join(imgDir, targetName);
@@ -353,14 +359,21 @@ function slugId(title) {
   );
 }
 
-// ---------- http helpers ----------
+// ---------- http helpers & security headers ----------
+const SECURITY_HEADERS = {
+  "X-Content-Type-Options": "nosniff",
+  "X-Frame-Options": "SAMEORIGIN",
+  "Referrer-Policy": "strict-origin-when-cross-origin",
+  "Permissions-Policy": "camera=(), microphone=(), geolocation=()",
+};
+
 function sendCompressed(req, res, statusCode, headers, body) {
   const buf = Buffer.isBuffer(body)
     ? body
     : Buffer.from(typeof body === "string" ? body : JSON.stringify(body));
 
   const acceptEncoding = String(req?.headers?.["accept-encoding"] || "");
-  const resHeaders = { ...(headers || {}) };
+  const resHeaders = { ...SECURITY_HEADERS, ...(headers || {}) };
 
   if (buf.length >= 512) {
     if (/\bgzip\b/i.test(acceptEncoding)) {
@@ -403,6 +416,7 @@ function sendCompressed(req, res, statusCode, headers, body) {
 
 function sendJson(res, statusCode, payload, extraHeaders, req) {
   const headers = {
+    ...SECURITY_HEADERS,
     "Content-Type": "application/json; charset=utf-8",
     "Cache-Control": "no-store, no-cache, must-revalidate",
     ...(extraHeaders || {}),
@@ -1143,7 +1157,8 @@ function serveStatic(req, res, pathname) {
     const etag = `W/"${stat.size.toString(16)}-${Math.floor(stat.mtimeMs).toString(16)}"`;
     const ext = path.extname(filePath);
     const isImg = [".png", ".jpg", ".jpeg", ".svg", ".webp", ".ico"].includes(ext);
-    const cacheControl = pathname === "/sw.js"
+    const isDev = !process.env.VERCEL;
+    const cacheControl = pathname === "/sw.js" || isDev
       ? "no-cache, must-revalidate"
       : isImg
       ? "public, max-age=31536000, immutable"
@@ -1151,6 +1166,7 @@ function serveStatic(req, res, pathname) {
 
     if (req.headers["if-none-match"] === etag) {
       res.writeHead(304, {
+        ...SECURITY_HEADERS,
         "ETag": etag,
         "Cache-Control": cacheControl,
       });
@@ -1160,11 +1176,12 @@ function serveStatic(req, res, pathname) {
 
     fs.readFile(filePath, (err, data) => {
       if (err) {
-        res.writeHead(404);
+        res.writeHead(404, SECURITY_HEADERS);
         res.end("not found");
         return;
       }
       const headers = {
+        ...SECURITY_HEADERS,
         "Content-Type": MIME_TYPES[ext] || "application/octet-stream",
         "ETag": etag,
         "Cache-Control": cacheControl,
