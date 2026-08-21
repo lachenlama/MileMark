@@ -15,11 +15,11 @@ const MMShare = (() => {
     if (fontsReady) return fontsReady;
     fontsReady = (document.fonts
       ? Promise.all([
-          document.fonts.load('400 130px "Anton"'),
-          document.fonts.load('700 64px "Caveat"'),
-          document.fonts.load('800 32px "Hanken Grotesk"'),
-          document.fonts.load('900 32px "Hanken Grotesk"'),
-        ]).catch(() => {})
+        document.fonts.load('400 130px "Anton"'),
+        document.fonts.load('700 64px "Caveat"'),
+        document.fonts.load('800 32px "Hanken Grotesk"'),
+        document.fonts.load('900 32px "Hanken Grotesk"'),
+      ]).catch(() => { })
       : Promise.resolve());
     return fontsReady;
   }
@@ -143,11 +143,11 @@ const MMShare = (() => {
     ctx.font = '400 70px "Anton", sans-serif';
     ctx.save();
     ctx.translate(0, 0);
-    ctx.fillText("MILEMARK", W / 2, 196);
+    ctx.fillText(opts.brand || "MILEMARK", W / 2, 196);
     ctx.restore();
     ctx.fillStyle = MUTED;
     ctx.font = '700 50px "Caveat", cursive';
-    ctx.fillText("a not another experience run", W / 2, 256);
+    ctx.fillText(opts.brandSub || "a not another experience run", W / 2, 256);
 
     // top hairline
     ctx.strokeStyle = "rgba(255,255,255,0.16)";
@@ -191,7 +191,7 @@ const MMShare = (() => {
       // eyebrow
       ctx.fillStyle = MUTED;
       ctx.font = '900 34px "Hanken Grotesk", sans-serif';
-      ctx.fillText("·  A  NEW  MARK  ·", W / 2, 900);
+      ctx.fillText(opts.eyebrow || "·  A  NEW  MARK  ·", W / 2, 900);
 
       // name
       ctx.fillStyle = INK;
@@ -261,6 +261,7 @@ const MMShare = (() => {
 
   // ---- opt builders ----
   function badgeOpts(badge, profile) {
+    const isNAE = badge.issuer === "Not Another Exp.";
     const lvl = profile ? MM.levelFor(profile.points) : null;
     return {
       kind: "badge",
@@ -268,8 +269,15 @@ const MMShare = (() => {
       glyph: badge.glyph,
       headline: badge.name,
       note: badge.note,
+      brand: isNAE ? "NOT ANOTHER EXP." : "MILEMARK",
+      brandSub: isNAE ? "genesis collectible · future nft protocol" : "a not another experience run",
+      eyebrow: isNAE ? "· SPECIAL ISSUE · NOT ANOTHER EXP. ·" : "·  A  NEW  MARK  ·",
       alias: profile ? profile.alias : "",
-      sub: lvl ? "lvl " + (lvl.index + 1) + " · " + lvl.name + " · " + profile.points + " pts" : "",
+      sub: isNAE
+        ? "token status: minted · nft eligible"
+        : lvl
+          ? "lvl " + (lvl.index + 1) + " · " + lvl.name + " · " + profile.points + " pts"
+          : "",
     };
   }
   function signupOpts(run, profile, level) {

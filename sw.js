@@ -1,5 +1,5 @@
 // MileMark service worker — offline shell cache & push notifications.
-const CACHE = "milemark-v27";
+const CACHE = "milemark-v40";
 // Only the public shell is precached. Admin pages are gated server-side, and the
 // API is never cached (see fetch handler) so the shared wall always stays fresh.
 const ASSETS = [
@@ -20,6 +20,8 @@ const ASSETS = [
   "./images/dj-set.jpg",
   "./images/group-run.jpg",
   "./images/bg.jpg",
+  "./images/NotAnotherExp.svg",
+  "./images/MileMark.svg",
 ];
 
 self.addEventListener("install", (e) => {
